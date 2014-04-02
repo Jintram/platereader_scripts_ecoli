@@ -26,9 +26,9 @@
 % ************************************************
 % specify folder, date, etc
 % ************************************************
-myRootDir='\\biofysicasrv\Users2\Walker\PlateReader\xxx';
-myDateDir='2013-07-30\';
-datafile='130730';
+myRootDir='U:\PROJECTS\Temperature_Mutants\platereader\';
+myDateDir='2014_03_29\';
+datafile='2014_03_29_results_temperature_mutants';
 
 % ************************************************
 % import data. names: 'data' 'textdata'. create saveDirectory
@@ -154,29 +154,37 @@ clear i dummy realData idx idx_col idx_row data textdata status msg id idxtime i
 % 'blank'= medium without bacteria -> subtract from all other entries
 % all blank data is averaged (over all positions, but individually for each
 % time point)
-SHOW_FIG_BLANK=0;
+SHOW_FIG_BLANK=1;
 if SHOW_FIG_BLANK
     figure
     clf
     title('blanks')
     hold on
     xlabel('time [h]')
-    ylabel('OD (550)')
+    ylabel('OD (600)')
 end
 [blank_row,blank_col]=find(strcmp(DescriptionPlateCoordinates,'blank')==1); %find all blank positions
 numBlanks=length(blank_row); % number of blanks
 avBlankPerTime=zeros(size(sortedData,1),1);
+avPerBlank = [], stdPerBlank = []; % MW
 for i=1:numBlanks
     wellName=PositionNames(blank_row(i),blank_col(i)); % e.g. 'A1'
     idx=find(strcmp(wellCoordinates,wellName)==1); % which entry in sortedData corresponds to wellName
     avBlankPerTime=avBlankPerTime+sortedData(idx).OD;
     if SHOW_FIG_BLANK
-        plot(sortedData(idx).time,sortedData(idx).OD,'Color', 0.8*i/numBlanks*[1 1 1])
+        plot(sortedData(idx).time,sortedData(idx).OD,'x','Color', 0.8*i/numBlanks*[1 1 1])
     end
+    avPerBlank = [avPerBlank mean(sortedData(idx).OD)]; % addition MW
+    stdPerBlank = [stdPerBlank std(sortedData(idx).OD)]; % addition MW
 end
 avBlankPerTime=avBlankPerTime/numBlanks;
 if SHOW_FIG_BLANK
-        plot(sortedData(1).time,avBlankPerTime,'r')
+        % plot averages per timepoint
+        plot(sortedData(1).time,avBlankPerTime,'xr')
+        % plot averages per blank
+        figure(2)
+        errorbar(avPerBlank,stdPerBlank) % MW
+        axis([-.5 numBlanks+.5 0 max(avPerBlank)*1.1])
 end
 totalAvBlank=mean(avBlankPerTime); % maybe use complete average instead of av per time point. Todo
 
