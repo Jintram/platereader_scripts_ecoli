@@ -27,8 +27,11 @@
 % specify folder, date, etc
 % ************************************************
 myRootDir='U:\PROJECTS\Temperature_Mutants\platereader\';
+myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
 myDateDir='2014_03_29\';
 datafile='2014_03_29_results_temperature_mutants';
+
+% OD range to fit is set at comment "% Change OD range here".
 
 % ************************************************
 % import data. names: 'data' 'textdata'. create saveDirectory
@@ -36,14 +39,15 @@ datafile='2014_03_29_results_temperature_mutants';
 myFullDir=[myRootDir myDateDir];
 [data textdata]=xlsread([myFullDir, datafile, '.xls']);
 [~, DescriptionPlateCoordinates]=xlsread([myFullDir 'plateCoordinates.xlsx'],'C4:N11'); %what is tested on which position
-load([myRootDir 'PositionNames.mat']); % cell array with 'A1' 'B1' etc
+load([myRootDir myScriptDir 'PositionNames.mat']); % cell array with 'A1' 'B1' etc
+load([myRootDir myScriptDir 'myColor.mat'],'myColor'); % load MW colors
 %
 % nb: the timefield is now in IEEE format and can be converted into minutes
 % by DJK_getMinutesfromTimestamp(timeIeee). Timefield will be converted to
 % hours further below
 
 
-% Data structure: (X=not important)
+% Data structure of Excel sheet: (X=not important)
 % data:     X -- X -- Nan   -- Nan -- time1 -- OD1 -- time2 -- OD2 -- time3 -- OD3 -- time4 -- OD4
 % textdata: X -- X -- A01   --  X --    X --  xxxx
 %                    (well nr)
@@ -166,7 +170,7 @@ end
 [blank_row,blank_col]=find(strcmp(DescriptionPlateCoordinates,'blank')==1); %find all blank positions
 numBlanks=length(blank_row); % number of blanks
 avBlankPerTime=zeros(size(sortedData,1),1);
-avPerBlank = [], stdPerBlank = []; % MW
+avPerBlank = []; stdPerBlank = []; % MW
 for i=1:numBlanks
     wellName=PositionNames(blank_row(i),blank_col(i)); % e.g. 'A1'
     idx=find(strcmp(wellCoordinates,wellName)==1); % which entry in sortedData corresponds to wellName
@@ -174,15 +178,16 @@ for i=1:numBlanks
     if SHOW_FIG_BLANK
         plot(sortedData(idx).time,sortedData(idx).OD,'x','Color', 0.8*i/numBlanks*[1 1 1])
     end
-    avPerBlank = [avPerBlank mean(sortedData(idx).OD)]; % addition MW
-    stdPerBlank = [stdPerBlank std(sortedData(idx).OD)]; % addition MW
+    % determine avg and std per blank
+    avPerBlank = [avPerBlank mean(sortedData(idx).OD)]; % MW
+    stdPerBlank = [stdPerBlank std(sortedData(idx).OD)]; % MW
 end
 avBlankPerTime=avBlankPerTime/numBlanks;
 if SHOW_FIG_BLANK
         % plot averages per timepoint
         plot(sortedData(1).time,avBlankPerTime,'xr')
         % plot averages per blank
-        figure(2)
+        figure
         errorbar(avPerBlank,stdPerBlank) % MW
         axis([-.5 numBlanks+.5 0 max(avPerBlank)*1.1])
 end
@@ -197,9 +202,10 @@ clear SHOW_FIG_BLANK blank_row blank_col numBlanks i idx wellName
 
 %% (3)
 % ************************************************
-%choose fitTime according to OD thresholds
+%choose fitTime according to OD thresholds 
 % ************************************************
-ODmin=0.03; ODmax=0.08; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
+% Change OD range here (standard = [0.03, 0.08]):
+ODmin=0.01; ODmax=0.025; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.
@@ -233,6 +239,8 @@ for i=1:length(sortedData)
 end
 clear i idxODmaxOrLower idxODminOrHigher idxMin idxMax status msg id
 
+%{
+% Not used MW, untested by NW
 %% (4) optional
 % ************************************************
 % loop over all wells and choose fitTimeManual
@@ -303,7 +311,10 @@ for row=1:size(DescriptionPlateCoordinates,1)
     end
 end
 clear fitTimeManualstr fitT col fitT fitTimeManualstr idx row startindex y_lim stopIt
+%}
 
+%{
+% Not used MW, untested by NW
 %% (5) optional (use if (4) was used, otherwise ignore)
 % ************************************************
 % check if some fitTimeManuals are accidently empty
@@ -314,6 +325,14 @@ for i=1:length(sortedData)
     end
 end         
 clear i
+%}
+
+%% (MW5b)
+% ************************************************ 
+% Plot all graphs grouped by category
+% ************************************************
+
+% TODO
 
 %% (6)
 % ************************************************
@@ -374,10 +393,13 @@ muAvStdev=zeros(length(wellNames),6);
 % mu -- stdev(mu) --#repetitions --  muManual -- stdev(muManual) -- #repetitions(Manual)
 
 
-SHOW_FIG_FIT=1;
+SHOW_FIG_FIT=0; % Default 1 - MW
 SHOW_FIG_FITMANUAL=0; % no options to save! not kept uptodate!
 
-myColor=[1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0; 1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0];
+% NW's colors
+% myColor=[1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0; 1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0];
+% MW's colors loaded in section (1)
+
 % -----------------------------------------------
 %loop over different groups in well (wellNames)
 % -----------------------------------------------
@@ -465,7 +487,7 @@ for nameidx=1:length(wellNames)    %blubb
                     if length(sortedData(i).fitTime)==2 %exclude failed wells where OD threshold is not reached
                         fitTimeext=[sortedData(i).fitTime(1)-1:0.01:sortedData(i).fitTime(2)+1];  %in [h]
                         ODcalc=sortedData(i).x0*2.^(sortedData(i).mu*fitTimeext);
-                        fitline=plot(fitTimeext,ODcalc,'-.','Color',currentColor);
+                        fitline=plot(fitTimeext,ODcalc,'-.','Color',currentColor);                        
                         set(get(get(fitline,'Annotation'),'LegendInformation'),...
                             'IconDisplayStyle','off'); % Exclude line from legend
                     end
@@ -559,7 +581,11 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % -------------------------
 % Manual Fit range not implemented in log-plots!
 SHOW_FIG_FIT=1;
-myColor=[1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0; 1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0];
+
+% NW's colors:
+%myColor=[1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0; 1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0];
+% MW's colors loaded at section (1)
+
 % -----------------------------------------------
 %loop over different groups in well (wellNames)
 % -----------------------------------------------
@@ -630,8 +656,8 @@ for nameidx=1:length(wellNames)    %blubb
                         ODcalc=sortedData(i).x0*2.^(sortedData(i).mu*fitTimeext);
                         %fitline=plot(fitTimeext,log(ODcalc)/log(2),'-','Color',currentColor);
                         fitline=plot(fitTimeext,ODcalc,'-','Color',currentColor);
-                        set(get(get(fitline,'Annotation'),'LegendInformation'),...
-                            'IconDisplayStyle','off'); % Exclude line from legend
+                            set(get(get(fitline,'Annotation'),'LegendInformation'),...
+                            'IconDisplayStyle','off'); % Exclude line from legend                            
                     end
                 end
                 
