@@ -329,10 +329,105 @@ clear i
 
 %% (MW5b)
 % ************************************************ 
-% Plot all graphs grouped by category
+% Plot all graphs grouped by category, without fitting
 % ************************************************
 
-% TODO
+%create subSaveDirectory for these plots
+myJustPlotDir=[myPlotsSaveDir 'Rawplots\'];
+if exist(myJustPlotDir)~=7
+  [status,msg,id] = mymkdir([myJustPlotDir]);
+  if status == 0
+    disp(['Warning: unable to mkdir ' myJustPlotDir ' : ' msg]);
+    return;
+  end
+end
+
+% names of wells, excluding 'x' and 'blank'
+dummy=unique(DescriptionPlateCoordinates);
+wellNames={};
+for i=1:length(dummy);
+    if strcmp(dummy(i),'x')==0 & strcmp(dummy(i),'blank')==0  % HERE possibility to exclude 
+                                                              % more names (e.g. contaminated wells)
+        wellNames{end+1,1}=char(dummy(i));
+    end
+end
+
+SHOW_GRAPHS_ON_SCREEN=1; % Default = 1 
+
+% -----------------------------------------------
+%loop over different groups in well (wellNames)
+% -----------------------------------------------
+for nameidx=1:length(wellNames)    
+    name=char(wellNames(nameidx));
+
+    colorcounter=0;
+  %  usedColors=[]; % needed for legend in correct color
+  %  dataidx=[]; % array with indices of sortedData that contain 'name'
+    mylegendText=[];
+    
+    % initiate PLOTS
+    if SHOW_GRAPHS_ON_SCREEN
+        h=figure;
+        clf
+        title([name ' OD values over time'])
+        hold on
+        xlabel('time [h]')
+        ylabel('OD')        
+    end   
+      
+    % -----------------------------------------------
+    %  loop over all wells and search for matching description (same
+    %  'name')
+    % (TODO MW: might be done more elegantly by building dictionary
+    % at beginning, and then selecting appropiate indexes using this.)
+    % -----------------------------------------------
+    for i=1:length(sortedData) 
+        % if name matches current category
+        if strcmp(sortedData(i).DescriptionPos,name)==1
+            
+            colorcounter=colorcounter+1;
+            
+            % PLOT 
+            figure(h)
+            plot(sortedData(i).time,sortedData(i).OD_subtr,'Color',myColor(colorcounter,:),'Linewidth',2);                                  
+                
+            %collect data for legend
+            % TODO EDIT MW
+            if isempty(mylegendText)
+                mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu) '''' ];
+            else
+                mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu) '''' ];
+            end
+           % dataidx=[dataidx,i];
+           % usedColors=[usedColors;currentColor];
+                
+        end
+    end
+    % end loop over all data and search for repetitions with same 'name'
+    % -----------------------------------------------
+    
+    %muAvStdev(nameidx,:)=[mean(muAccum),std(muAccum),length(muAccum), mean(muManualAccum),...
+    %    std(muManualAccum),length(muManualAccum)];
+    
+    %create legend and save image
+    if SHOW_GRAPHS_ON_SCREEN
+        eval(['legend(', mylegendText, ',''Location'',''NW'')']);
+        figFullName=[myJustPlotDir 'GrowthCurves_' name];
+
+        saveas(h,[figFullName '.fig'], 'fig');
+        saveas(h,[figFullName '.png'], 'png');
+        
+        close(h)
+    end 
+      
+end
+% and loop over all names (different exp's)
+% -----------------------------------------------
+
+clear dummy nameidx name muAccum muManualAccum
+clear xlimfit ylimfit colorcounter mylegendText g h fitTimeManualext ODcalcManual  ODcalc
+clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODminline
+
 
 %% (6)
 % ************************************************
