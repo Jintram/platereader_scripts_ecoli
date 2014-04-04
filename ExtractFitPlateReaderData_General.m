@@ -337,7 +337,7 @@ clear i
 % to see these deviations!
 
 PLOTIMEERROR = 0;
-SHOW_GRAPHS_ON_SCREEN=1; % Default = 1 
+HIDE_GRAPHS=1; % TODO MW - doesn't work
 windowSize=11; % needs to be odd number! - windowsize for moving average
 
 %create subSaveDirectory for these plots
@@ -383,6 +383,9 @@ for nameidx=1:length(wellNames)
     hold on
     xlabel('time [h]')
     ylabel('OD')      
+    if HIDE_GRAPHS
+        set(gcf,'Visible','off'); % TODO MW - doesn't work
+    end         
     % logplots
     hlog=figure(2); 
     clf    
@@ -391,12 +394,10 @@ for nameidx=1:length(wellNames)
     hold on
     xlabel('time [h]')
     ylabel('OD')        
-      
-
     % hide plots if desired  
-    if ~SHOW_GRAPHS_ON_SCREEN
-        set(gcf,'Visible','off');
-    end
+    if HIDE_GRAPHS
+        set(gcf,'Visible','off'); % TODO MW - doesn't work
+    end     
     
     % -----------------------------------------------
     %  loop over all wells and search for matching description (same
@@ -439,11 +440,14 @@ for nameidx=1:length(wellNames)
         DetermineAveragesWells = 1; else DetermineAveragesWells = 0;
     end
     if DetermineAveragesWells
-        disp(['WARNING!- Using data from different timepoints to avg! (Mean time error: ' num2str(myTimeError) ' hr.)']);
+        
         % avg & std timepoints
         myMeanCurrentDataTime = mean(myCurrentDataTime');
         myStdCurrentDataTime = std(myCurrentDataTime');
         myTimeError = mean(myStdCurrentDataTime);
+
+        % Warn user 
+        disp(['WARNING!- Using data from different timepoints to avg! (Mean time error: ' num2str(myTimeError) ' hr.)']);
         
         % Also let user know
         figure(h); title([name ' OD values over time (time error: ' num2str(myTimeError) ' hr)' ]);
