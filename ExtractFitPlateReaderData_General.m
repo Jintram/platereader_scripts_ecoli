@@ -205,7 +205,7 @@ clear SHOW_FIG_BLANK blank_row blank_col numBlanks i idx wellName
 %choose fitTime according to OD thresholds 
 % ************************************************
 % Change OD range here (standard = [0.03, 0.08]):
-ODmin=0.01; ODmax=0.025; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
+ODmin=2*10^-3; ODmax=8*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.
@@ -332,6 +332,14 @@ clear i
 % Plot all graphs grouped by category, without fitting
 % ************************************************
 
+% IMPORTANT NOTE: wells are not measured at the same points in time,
+% so I determine the average for each of these points, set PLOTIMEERROR=1
+% to see these deviations!
+
+PLOTIMEERROR = 0;
+SHOW_GRAPHS_ON_SCREEN=1; % Default = 1 
+windowSize=11; % needs to be odd number! - windowsize for moving average
+
 %create subSaveDirectory for these plots
 myJustPlotDir=[myPlotsSaveDir 'Rawplots\'];
 if exist(myJustPlotDir)~=7
@@ -352,73 +360,151 @@ for i=1:length(dummy);
     end
 end
 
-SHOW_GRAPHS_ON_SCREEN=1; % Default = 1 
+
 
 % -----------------------------------------------
 %loop over different groups in well (wellNames)
 % -----------------------------------------------
 for nameidx=1:length(wellNames)    
+       
     name=char(wellNames(nameidx));
 
     colorcounter=0;
   %  usedColors=[]; % needed for legend in correct color
   %  dataidx=[]; % array with indices of sortedData that contain 'name'
     mylegendText=[];
+       
     
     % initiate PLOTS
-    if SHOW_GRAPHS_ON_SCREEN
-        h=figure;
-        clf
-        title([name ' OD values over time'])
-        hold on
-        xlabel('time [h]')
-        ylabel('OD')        
-    end   
+    % normal scale plots
+    h=figure(1);    
+    clf
+    title([name ' OD values over time'])
+    hold on
+    xlabel('time [h]')
+    ylabel('OD')      
+    % logplots
+    hlog=figure(2); 
+    clf    
+    set(gca, 'Yscale', 'log')
+    title(['log ' name ' OD values over time'])
+    hold on
+    xlabel('time [h]')
+    ylabel('OD')        
       
+
+    % hide plots if desired  
+    if ~SHOW_GRAPHS_ON_SCREEN
+        set(gcf,'Visible','off');
+    end
+    
     % -----------------------------------------------
     %  loop over all wells and search for matching description (same
     %  'name')
     % (TODO MW: might be done more elegantly by building dictionary
     % at beginning, and then selecting appropiate indexes using this.)
     % -----------------------------------------------
+    myCurrentDataTime = []; myCurrentDataOD_substr = []; myCurrentColors = [];
     for i=1:length(sortedData) 
-        % if name matches current category
+        
+        % if name matches current group
         if strcmp(sortedData(i).DescriptionPos,name)==1
             
             colorcounter=colorcounter+1;
             
-            % PLOT 
-            figure(h)
-            plot(sortedData(i).time,sortedData(i).OD_subtr,'Color',myColor(colorcounter,:),'Linewidth',2);                                  
-                
-            %collect data for legend
-            % TODO EDIT MW
-            if isempty(mylegendText)
-                mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu) '''' ];
-            else
-                mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu) '''' ];
-            end
-           % dataidx=[dataidx,i];
-           % usedColors=[usedColors;currentColor];
-                
+            % Collect all data of this group in time and OD vector
+            myCurrentDataTime = [myCurrentDataTime sortedData(i).time];
+            myCurrentDataOD_substr = [myCurrentDataOD_substr sortedData(i).OD_subtr];         
+            
+            % Plot the current well
+            % Plot linear scale
+            figure(h);
+            plot(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
+            % Plot log scale
+            figure(hlog); % also plot on logarithmic scale
+            semilogy(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
+            
         end
     end
     % end loop over all data and search for repetitions with same 'name'
     % -----------------------------------------------
     
+    % Determine means if multiple wells are available for this group
+    %
+    % !WARNING!
+    % Note that the time points are not necesarilly the same, which
+    % complicates facts..
+    % If >1 wells for category, set flag
+    if size(myCurrentDataTime,2) > 1 
+        DetermineAveragesWells = 1; else DetermineAveragesWells = 0;
+    end
+    if DetermineAveragesWells
+        disp(['WARNING!- Using data from different timepoints to avg! (Mean time error: ' num2str(myTimeError) ' hr.)']);
+        % avg & std timepoints
+        myMeanCurrentDataTime = mean(myCurrentDataTime');
+        myStdCurrentDataTime = std(myCurrentDataTime');
+        myTimeError = mean(myStdCurrentDataTime);
+        
+        % Also let user know
+        figure(h); title([name ' OD values over time (time error: ' num2str(myTimeError) ' hr)' ]);
+        figure(hlog); title([name ' OD values over time (time error: ' num2str(myTimeError) ' hr)' ]);
+        
+        % show user how bad time error is, if requested
+        if PLOTIMEERROR myStdCurrentDataTime, end 
+        
+        % avg & std OD values
+        myMeanCurrentDataOD_substr = mean(myCurrentDataOD_substr');
+        myStdCurrentDataOD_substr = std(myCurrentDataOD_substr');
+    end
+       
     %muAvStdev(nameidx,:)=[mean(muAccum),std(muAccum),length(muAccum), mean(muManualAccum),...
     %    std(muManualAccum),length(muManualAccum)];
     
-    %create legend and save image
-    if SHOW_GRAPHS_ON_SCREEN
-        eval(['legend(', mylegendText, ',''Location'',''NW'')']);
-        figFullName=[myJustPlotDir 'GrowthCurves_' name];
+    %create legend and save image       
+    
+    % plot only linear
+    figure(h)
+    figFullName=[myJustPlotDir 'GrowthCurves_' name];        
+    % save without averages
+    saveas(h,[figFullName '.fig'], 'fig');
+    saveas(h,[figFullName '.png'], 'png');        
 
-        saveas(h,[figFullName '.fig'], 'fig');
-        saveas(h,[figFullName '.png'], 'png');
+    % Plot mean line of this group
+    if DetermineAveragesWells
+        if PLOTIMEERROR
+            errorbarxy(myMeanCurrentDataTime',myMeanCurrentDataOD_substr',myStdCurrentDataTime',myStdCurrentDataOD_substr',[],[],'r','y');%,'-','Color','red','Linewidth',2);
+        else
+            % Plot moving average
+            [movingAverage,xrange]=movingaverage(myMeanCurrentDataOD_substr,windowSize);
+            % linear scale
+            figure(h); plot(myMeanCurrentDataTime(xrange)',movingAverage','-','Color','red','Linewidth',2);
+            % log scale
+            figure(hlog); semilogy(myMeanCurrentDataTime(xrange)',movingAverage','-','Color','red','Linewidth',2);
+            %plot(myMeanCurrentDataTime',myMeanCurrentDataOD_substr','-','Color','red','Linewidth',2);
+            %errorbar(myMeanCurrentDataTime',myMeanCurrentDataOD_substr',myStdCurrentDataOD_substr','-','Color','red','Linewidth',2);
+        end
+    else
+        % No means available for different series, but can determine
+        % moving average.
+
+        [movingAverage,xrange]=movingaverage(myCurrentDataOD_substr,windowSize);
+        figure(h); plot(myCurrentDataTime(xrange)',movingAverage','-','Color','red','Linewidth',2);
+        figure(hlog); semilogy(myCurrentDataTime(xrange)',movingAverage','-','Color','red','Linewidth',2);
         
-        close(h)
-    end 
+    end
+
+    % save with (moving) averages on linear scale
+    figFullName=[myJustPlotDir 'avg_GrowthCurves_' name];
+    saveas(h,[figFullName '.fig'], 'fig');
+    saveas(h,[figFullName '.png'], 'png');
+    % save with (moving) averages on log scale
+    figFullName=[myJustPlotDir 'log_avg_GrowthCurves_' name];
+    saveas(hlog,[figFullName '.fig'], 'fig');
+    saveas(hlog,[figFullName '.png'], 'png');
+
+    % close figures
+    close(h); close(hlog);
+
       
 end
 % and loop over all names (different exp's)
