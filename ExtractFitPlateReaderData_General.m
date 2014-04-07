@@ -100,8 +100,9 @@ for i=1:length(wellCoordinates)
     sortedData(i).time=[];
     sortedData(i).OD=[];
     sortedData(i).OD_subtr=[];
-    sortedData(i).fitTime=[];
+    sortedData(i).fitTime=[];    
     sortedData(i).fitTimeManual=[];
+    sortedData(i).fitRange=[];
     [idx_row,idx_col]=find(strcmp(PositionNames,wellCoordinates(i))==1);
     sortedData(i).DescriptionPos=char(DescriptionPlateCoordinates(idx_row,idx_col));
     realData=(strcmp(sortedData(i).DescriptionPos,'blank')==0 & strcmp(sortedData(i).DescriptionPos,'x')==0);
@@ -381,8 +382,10 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % ************************************************
 %choose fitTime according to OD thresholds 
 % ************************************************
+% XXXXXXXXXXXXXXXX
 % Change OD range here (standard = [0.03, 0.08]):
-ODmin=2*10^-3; ODmax=12*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
+% XXXXXXXXXXXXXXXX
+ODmin=2*10^-3; ODmax=8*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.
@@ -416,12 +419,24 @@ for i=1:length(sortedData)
         idxMax=max(idxODmaxOrLower);
         
         % moving avg has different timerange, so get that one
-        myTimes = sortedData(i).time(sortedData(i).rangeMovingAverage)
+        myTimes = sortedData(i).time(sortedData(i).rangeMovingAverage);
         
         % use these as base for time window
-        sortedData(i).fitTime=[myTimes(idxMin), myTimes(idxMax)];
+        startTime = myTimes(idxMin);
+        endTime   = myTimes(idxMax);
+        if isempty(startTime)
+            startTime=min(sortedData(i).time);
+            disp('Warning: Couldn''t find start fit time (taking min).')
+        end
+        if isempty(endTime)
+            endTime=max(sortedData(i).time);
+            disp('Warning: Couldn''t find end fit time (taking max).')
+        end
+        sortedData(i).fitTime=[startTime, endTime];
+        sortedData(i).fitRange = ...
+            find(sortedData(i).time>=startTime & sortedData(i).time<= endTime);
         
-    else sortedData(i).fitTime=[];
+    else sortedData(i).fitTime=[]; sortedData(i).fitRange=[];
     end
 end
 clear i idxODmaxOrLower idxODminOrHigher idxMin idxMax status msg id
@@ -755,7 +770,9 @@ fclose(fid);
 filename = [myFullDir 'FittedGrowthRateData_ODrange' num2str(ODmin) '_' num2str(ODmax) '.xlsx'];
 %disp(['Saving ' filename]);
 %myPlateauTable=table(wellNames,myPlateauValues'; 
-myDataTable=cell([wellNames,num2cell(muAvStdev)])
+% Sheet w. averages and stds mu
+TitleLine={'name','mu','stdev(mu)','#repetitions','muManual','stdev(muManual)','#repetitions(Manual)'}
+myDataTable=cell([TitleLine;wellNames,num2cell(muAvStdev)])
 xlswrite(filename,myDataTable,'FittedGrowthRateData','B2');
 
 %save 'sortedData' and growthrate data  'muAvStdev'
@@ -831,7 +848,10 @@ for nameidx=1:length(wellNames)    %blubb
                 if sortedData(i).realData==1
                     currentColor=myColor(colorcounter,:);
                     %plot(sortedData(i).time,log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'Markersize',3);
-                    plot(sortedData(i).time,sortedData(i).OD_subtr,'o','Color',currentColor,'Markersize',3);
+                    plot(sortedData(i).time,sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',3);
+                    % Highlight datapoint used for fit
+                    fitRange=sortedData(i).fitRange;
+                    plot(sortedData(i).time(fitRange),sortedData(i).OD_subtr(fitRange),'x','Color',currentColor,'MarkerSize',6,'LineWidth',3);
                 else
                     currentColor=[1 1 1]*colorcounter/(0.5+colorcounter);
                     %plot(sortedData(i).time,log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'MarkerSize',2);
@@ -874,9 +894,9 @@ for nameidx=1:length(wellNames)    %blubb
                 
                 %collect data for legend
                 if isempty(mylegendText)
-                    mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu) '''' ];
+                    mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu) , ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
                 else
-                    mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu) '''' ];
+                    mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu), ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
                 end
                % dataidx=[dataidx,i];
                % usedColors=[usedColors;currentColor];
