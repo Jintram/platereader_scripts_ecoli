@@ -213,11 +213,11 @@ clear SHOW_FIG_BLANK blank_row blank_col numBlanks i idx wellName
 
 PLOTIMEERROR = 0;
 HIDE_GRAPHS=1; % TODO MW - doesn't work
-windowSize=11; % needs to be odd number! - windowsize for moving average
+windowSize=21; % needs to be odd number! - windowsize for moving average
 
 % For determining plateau values of plots
 myPlateauValues = []
-PLATEAUSTART = .9 % fraction of data after which averaging is performed 
+PLATEAUSTART = .9; % fraction of data after which averaging is performed 
                   % to estimate plateau value.
 
 %create subSaveDirectory for these plots
@@ -300,9 +300,14 @@ for nameidx=1:length(wellNames)
             semilogy(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
            
             % Determine moving averages for this group
-            [sortedData(i).movingAverage,sortedData(i).rangeMovingAverage]=movingaverage(sortedData(i).OD_subtr,windowSize);
-            figure(h); plot(myCurrentDataTime(rangeMovingAverage)',movingAverage','-','Color',myColor(colorcounter,:),'Linewidth',2);
-            figure(hlog); semilogy(myCurrentDataTime(rangeMovingAverage)',movingAverage','-','Color',myColor(colorcounter,:),'Linewidth',2);
+            %[sortedData(i).movingAverage,sortedData(i).rangeMovingAverage]=movingaverage(sortedData(i).OD_subtr,windowSize);
+            [movingAverage,rangeMovingAverage]=movingaverage(sortedData(i).OD_subtr,windowSize);
+            sortedData(i).movingAverage = movingAverage;
+            sortedData(i).rangeMovingAverage=rangeMovingAverage;
+                       
+            myColorNow=floor(myColor(colorcounter,:)*1.2); % quick n dirty edit color
+            figure(h); plot(sortedData(i).time(rangeMovingAverage),movingAverage','-','Color',myColorNow,'Linewidth',2);
+            figure(hlog); semilogy(sortedData(i).time(rangeMovingAverage),movingAverage','-','Color',myColorNow,'Linewidth',2);
 
             % Collect all data of this group in time and OD vector
             %myCurrentDataTime = [myCurrentDataTime sortedData(i).time];
@@ -335,8 +340,8 @@ for nameidx=1:length(wellNames)
     
     % First average different moving averages, if there are more lines
     % available.
-    if size(myCurrentDataOD_substr_movavg,2)>1
-        myMeanCurrentDataOD_substr_movavg = mean(myCurrentDataOD_substr_movavg)
+    if size(myCurrentDataOD_substr_movavg,1) > 1
+        myMeanCurrentDataOD_substr_movavg = mean(myCurrentDataOD_substr_movavg);
     end
     
     % Determine plateauvalue    
@@ -363,7 +368,7 @@ saveas(h,[figFullName '.png'], 'png');
 % Output plateau values to Excel file
 filename = [myJustPlotDir 'plateauvalues.xlsx'];
 %myPlateauTable=table(wellNames,myPlateauValues'; 
-myPlateauTable=cell([wellNames,num2cell(myPlateauValues')]);
+myPlateauTable=cell([wellNames,num2cell(myPlateauValues')])
 xlswrite(filename,myPlateauTable,'Plateauvalues','B2');
 
 clear dummy nameidx name muAccum muManualAccum
@@ -377,7 +382,7 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 %choose fitTime according to OD thresholds 
 % ************************************************
 % Change OD range here (standard = [0.03, 0.08]):
-ODmin=2*10^-3; ODmax=8*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
+ODmin=2*10^-3; ODmax=12*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.
@@ -403,15 +408,18 @@ for i=1:length(sortedData)
     if sortedData(i).realData==1 % ignore blanks and empty wells
         
         % obtain all values above and below specified values ODmin ODmax
-        idxODminOrHigher=find(sortedData(i).OD_subtr>ODmin);
-        idxODmaxOrLower=find(sortedData(i).OD_subtr<ODmax);
+        idxODminOrHigher=find(sortedData(i).movingAverage>ODmin);
+        idxODmaxOrLower=find(sortedData(i).movingAverage<ODmax);
         
         % get min and max of those
         idxMin=min(idxODminOrHigher);
         idxMax=max(idxODmaxOrLower);
         
+        % moving avg has different timerange, so get that one
+        myTimes = sortedData(i).time(sortedData(i).rangeMovingAverage)
+        
         % use these as base for time window
-        sortedData(i).fitTime=[sortedData(i).time(idxMin), sortedData(i).time(idxMax)];
+        sortedData(i).fitTime=[myTimes(idxMin), myTimes(idxMax)];
         
     else sortedData(i).fitTime=[];
     end
@@ -906,9 +914,12 @@ for nameidx=1:length(wellNames)    %blubb
 end
 % and loop over all names (different exp's)
 
+% MW - want to keep data.
+%{
 clear dummy SHOW_FIG_FIT SHOW_FIG_FITMANUAL myColor nameidx name muAccum muManualAccum
 clear xlimfit ylimfit colorcounter mylegendText g h fitTimeManualext ODcalcManual fitTimeext ODcalc
 clear fitline figFullName ans currentColor fid i str ODmaxline ODminline
+%}
 
 
 

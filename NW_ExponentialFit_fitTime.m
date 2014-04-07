@@ -7,6 +7,18 @@ idx=find(t>=myfitTime(1) & t<= myfitTime(2));
 t_sub=t(idx);
 y_sub=y(idx);
 
-p = polyfit(t_sub,log2(y_sub),1);
+log2_y_sub = log2(y_sub);
+
+% apparently sometimes data gets processed to be imaginary - 
+% prevent this:
+% TODO MW: Not entirely sure whether this is completely true, as I never 
+% see the disp printed. In any case some non-straight line fites result 
+% without this section of code.
+if ~isreal(log2_y_sub)
+    disp('Note: Converting imaginary data to real.');    
+    log2_y_sub = real(log2_y_sub);
+end
+
+p = polyfit(t_sub,log2_y_sub,1);
 power = p(1);
 x0 = 2^p(2);
