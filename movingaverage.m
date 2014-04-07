@@ -13,7 +13,7 @@ movingaverage = conv(y,F,'valid');
 
 % Also return range to use for x
 halfSize = floor(windowSize/2);
-xrange = [halfSize+1:length(y)-halfSize];
+xrange = [halfSize+1:length(y)-halfSize]';
 
 % Throw away exess points - only required if not used 'valid' option in conv()
 %movingaverage = movingaverage(halfSize+1:end-halfSize);

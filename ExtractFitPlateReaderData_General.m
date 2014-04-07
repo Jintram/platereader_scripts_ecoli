@@ -110,6 +110,8 @@ for i=1:length(wellCoordinates)
     sortedData(i).x0Manual=[];
     sortedData(i).mu=[];
     sortedData(i).x0=[];
+    sortedData(i).movingAverage=[];
+    sortedData(i).rangeMovingAverage=[];
 end
 
 % sort data
@@ -287,11 +289,7 @@ for nameidx=1:length(wellNames)
         % if name matches current group
         if strcmp(sortedData(i).DescriptionPos,name)==1
             
-            colorcounter=colorcounter+1;
-            
-            % Collect all data of this group in time and OD vector
-            myCurrentDataTime = [myCurrentDataTime sortedData(i).time];
-            myCurrentDataOD_substr = [myCurrentDataOD_substr sortedData(i).OD_subtr];         
+            colorcounter=colorcounter+1;           
             
             % Plot the current well
             % Plot linear scale
@@ -300,85 +298,31 @@ for nameidx=1:length(wellNames)
             % Plot log scale
             figure(hlog); % also plot on logarithmic scale
             semilogy(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
+           
+            % Determine moving averages for this group
+            [sortedData(i).movingAverage,sortedData(i).rangeMovingAverage]=movingaverage(sortedData(i).OD_subtr,windowSize);
+            figure(h); plot(myCurrentDataTime(rangeMovingAverage)',movingAverage','-','Color',myColor(colorcounter,:),'Linewidth',2);
+            figure(hlog); semilogy(myCurrentDataTime(rangeMovingAverage)',movingAverage','-','Color',myColor(colorcounter,:),'Linewidth',2);
+
+            % Collect all data of this group in time and OD vector
+            %myCurrentDataTime = [myCurrentDataTime sortedData(i).time];
+            %myCurrentDataOD_substr = [myCurrentDataOD_substr sortedData(i).OD_subtr];         
+            
+            % Collect moving averages of this group to be able to determine
+            % plateau value later.
+            myCurrentDataOD_substr_movavg = [myCurrentDataOD_substr sortedData(i).OD_subtr];
             
         end
     end
     % end loop over all data and search for repetitions with same 'name'
     % -----------------------------------------------
-    
-    % Determine means if multiple wells are available for this group
-    %
-    % !WARNING!
-    % Note that the time points are not necesarilly the same, which
-    % complicates facts..
-    % If >1 wells for category, set flag
-    if size(myCurrentDataTime,2) > 1 
-        DetermineAveragesWells = 1; else DetermineAveragesWells = 0;
-    end
-    if DetermineAveragesWells
         
-        % avg & std timepoints
-        myMeanCurrentDataTime = mean(myCurrentDataTime');
-        myStdCurrentDataTime = std(myCurrentDataTime');
-        myTimeError = mean(myStdCurrentDataTime);
-
-        % Warn user 
-        disp(['WARNING!- Using data from different timepoints to avg! (Mean time error: ' num2str(myTimeError) ' hr.)']);
-        
-        % Also let user know
-        figure(h); title([name ' OD values over time (time error: ' num2str(myTimeError) ' hr)' ]);
-        figure(hlog); title([name ' OD values over time (time error: ' num2str(myTimeError) ' hr)' ]);
-        
-        % show user how bad time error is, if requested
-        if PLOTIMEERROR myStdCurrentDataTime, end 
-        
-        % avg & std OD values
-        myMeanCurrentDataOD_substr = mean(myCurrentDataOD_substr');
-        myStdCurrentDataOD_substr = std(myCurrentDataOD_substr');
-    end
-       
-    %muAvStdev(nameidx,:)=[mean(muAccum),std(muAccum),length(muAccum), mean(muManualAccum),...
-    %    std(muManualAccum),length(muManualAccum)];
-    
-    %create legend and save image       
-    
-    % plot only linear
-    figure(h)
-    figFullName=[myJustPlotDir 'GrowthCurves_' name];        
-    % save without averages
-    saveas(h,[figFullName '.fig'], 'fig');
-    saveas(h,[figFullName '.png'], 'png');        
-
-    % Plot mean line of this group
-    if DetermineAveragesWells
-        if PLOTIMEERROR
-            errorbarxy(myMeanCurrentDataTime',myMeanCurrentDataOD_substr',myStdCurrentDataTime',myStdCurrentDataOD_substr',[],[],'r','y');%,'-','Color','red','Linewidth',2);
-        else
-            % Plot moving average
-            [movingAverage,xrange]=movingaverage(myMeanCurrentDataOD_substr,windowSize);
-            % linear scale
-            figure(h); plot(myMeanCurrentDataTime(xrange)',movingAverage','-','Color','red','Linewidth',2);
-            % log scale
-            figure(hlog); semilogy(myMeanCurrentDataTime(xrange)',movingAverage','-','Color','red','Linewidth',2);
-            %plot(myMeanCurrentDataTime',myMeanCurrentDataOD_substr','-','Color','red','Linewidth',2);
-            %errorbar(myMeanCurrentDataTime',myMeanCurrentDataOD_substr',myStdCurrentDataOD_substr','-','Color','red','Linewidth',2);
-        end
-    else
-        % No means available for different series, but can determine
-        % moving average.
-
-        [movingAverage,xrange]=movingaverage(myCurrentDataOD_substr,windowSize);
-        figure(h); plot(myCurrentDataTime(xrange)',movingAverage','-','Color','red','Linewidth',2);
-        figure(hlog); semilogy(myCurrentDataTime(xrange)',movingAverage','-','Color','red','Linewidth',2);
-        
-    end
-
     % save with (moving) averages on linear scale
-    figFullName=[myJustPlotDir 'avg_GrowthCurves_' name];
+    figFullName=[myJustPlotDir 'GrowthCurves_' name];
     saveas(h,[figFullName '.fig'], 'fig');
     saveas(h,[figFullName '.png'], 'png');
     % save with (moving) averages on log scale
-    figFullName=[myJustPlotDir 'log_avg_GrowthCurves_' name];
+    figFullName=[myJustPlotDir 'log_GrowthCurves_' name];
     saveas(hlog,[figFullName '.fig'], 'fig');
     saveas(hlog,[figFullName '.png'], 'png');
 
@@ -386,16 +330,19 @@ for nameidx=1:length(wellNames)
     close(h); close(hlog);
     
     % Determine plateau values for this group
-    % (determined here as average of last 10% values.)
-    if DetermineAveragesWells
-        % If average line was determined use that one
-        range = [ceil(size(myMeanCurrentDataOD_substr,2)*PLATEAUSTART) size(myMeanCurrentDataOD_substr,2)]; % Note transposed w. respect myCurrentDataOD_substr
-        currentPlateauValues = mean(myMeanCurrentDataOD_substr(range));
-    else
-        % Otherwise use single datapoints
-        range = [ceil(size(myCurrentDataOD_substr,1)*.9) size(myCurrentDataOD_substr,1)];
-        currentPlateauValues = mean(myCurrentDataOD_substr(range));
+    % (determined here as average of last 
+    % [fraction PLATEAUSTART:totallength] values.)
+    
+    % First average different moving averages, if there are more lines
+    % available.
+    if size(myCurrentDataOD_substr_movavg,2)>1
+        myMeanCurrentDataOD_substr_movavg = mean(myCurrentDataOD_substr_movavg)
     end
+    
+    % Determine plateauvalue    
+    range = [ceil(size(myMeanCurrentDataOD_substr_movavg,1)*PLATEAUSTART) size(myMeanCurrentDataOD_substr_movavg,1)];
+    currentPlateauValues = mean(myMeanCurrentDataOD_substr_movavg(range));
+
     myPlateauValues = [myPlateauValues currentPlateauValues];
       
 end
@@ -413,22 +360,7 @@ figFullName=[myJustPlotDir 'plateauvalues' ];
 saveas(h,[figFullName '.fig'], 'fig');
 saveas(h,[figFullName '.png'], 'png');
 
-% also save these to textfile (code adapted from Noreen/Daan)
-% give some output for growthrates and save them in .txt file. 
-%-------------------------------------------------
-fid = fopen([myJustPlotDir 'plateauvalues.txt'],'wt');
-% function from Daan
-disp(['  ']); disp(['   '])
-dispAndWrite(fid, ['--------------------------------------------------------------']);
-dispAndWrite(fid, ['Plateau values (' num2str(PLATEAUSTART) '-1.0 fraction of data)']);
-dispAndWrite(fid, ['--------------------------------------------------------------']);
-for i=1:length(myPlateauValues)
-    str = sprintf('''%15s'';''%1.4f''', ...
-        char(wellNames(i)), myPlateauValues(i));
-    dispAndWrite(fid,str);
-end
-fclose(fid);
-
+% Output plateau values to Excel file
 filename = [myJustPlotDir 'plateauvalues.xlsx'];
 %myPlateauTable=table(wellNames,myPlateauValues'; 
 myPlateauTable=cell([wellNames,num2cell(myPlateauValues')]);
@@ -470,12 +402,15 @@ end
 for i=1:length(sortedData)
     if sortedData(i).realData==1 % ignore blanks and empty wells
         
+        % obtain all values above and below specified values ODmin ODmax
         idxODminOrHigher=find(sortedData(i).OD_subtr>ODmin);
         idxODmaxOrLower=find(sortedData(i).OD_subtr<ODmax);
         
+        % get min and max of those
         idxMin=min(idxODminOrHigher);
         idxMax=max(idxODmaxOrLower);
         
+        % use these as base for time window
         sortedData(i).fitTime=[sortedData(i).time(idxMin), sortedData(i).time(idxMax)];
         
     else sortedData(i).fitTime=[];
