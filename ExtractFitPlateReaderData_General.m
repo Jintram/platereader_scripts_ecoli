@@ -200,134 +200,7 @@ for i=1:length(sortedData)
 end
 clear SHOW_FIG_BLANK blank_row blank_col numBlanks i idx wellName
 
-%% (3)
-% ************************************************
-%choose fitTime according to OD thresholds 
-% ************************************************
-% Change OD range here (standard = [0.03, 0.08]):
-ODmin=2*10^-3; ODmax=8*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
-
-%reset all actual data to 'real data' -> also "bad wells"are considered for
-% fitting as real data. only background and blank are not considered.
-% bad data can be excluded at point (8)
-for i=1:length(sortedData)
-    realData=(strcmp(sortedData(i).DescriptionPos,'blank')==0 & strcmp(sortedData(i).DescriptionPos,'x')==0);
-    sortedData(i).realData=realData;
-end
-
-%create subSaveDirectory according to fit OD
-myPlotsSaveDirODsub=[myPlotsSaveDir 'ODmin'  num2str(ODmin) 'ODmax' num2str(ODmax) '\'];
-if exist(myPlotsSaveDirODsub)~=7
-  [status,msg,id] = mymkdir([myPlotsSaveDirODsub]);
-  if status == 0
-    disp(['Warning: unable to mkdir ' myPlotssSaveDirODsub ' : ' msg]);
-    return;
-  end
-end
-
-
-
-for i=1:length(sortedData)
-    if sortedData(i).realData==1 % ignore blanks and empty wells
-        idxODminOrHigher=find(sortedData(i).OD_subtr>ODmin);
-        idxODmaxOrLower=find(sortedData(i).OD_subtr<ODmax);
-        idxMin=min(idxODminOrHigher);
-        idxMax=max(idxODmaxOrLower);
-        sortedData(i).fitTime=[sortedData(i).time(idxMin), sortedData(i).time(idxMax)];
-    else sortedData(i).fitTime=[];
-    end
-end
-clear i idxODmaxOrLower idxODminOrHigher idxMin idxMax status msg id
-
-%{
-% Not used MW, untested by NW
-%% (4) optional
-% ************************************************
-% loop over all wells and choose fitTimeManual
-% if 'x','blank' or bad data, fitTimeManual is set to =0
-% ************************************************
-% this cell is older and because of that a little akwardly written. it is
-% correct but not written in the most optimal way
-%
-stopIt=0;
-
-startindex=input('Startindex=');
-disp('enter 2 numbers seperated by space for each fitTimeManual. Use 0 (1 single number) if data is')
-disp('bad and shall be omitted. Pressing space (empty fitTimeManual) is interpreted as not reviewed.')
-disp('To stop, press ''q''. If you want to keep old fitTimeManual, press ''f''.') %f=forward 
-for row=1:size(DescriptionPlateCoordinates,1)
-    for col=1:size(DescriptionPlateCoordinates,2)
-        idx=find(strcmp(wellCoordinates,PositionNames(row,col))==1);
-        if idx>=startindex & stopIt==0
-            if strcmp(DescriptionPlateCoordinates(row,col),'x')==1 | strcmp(DescriptionPlateCoordinates(row,col),'blank')==1
-                sortedData(idx).fitTimeManual=0;
-            else
-                fitTimeManualstr='review';
-                while strcmp(fitTimeManualstr,'f')==0  & stopIt==0
-                    figure(2)
-                    clf
-                    semilogy(sortedData(idx).time*60,sortedData(idx).OD_subtr)
-                    hold on
-                    title(DescriptionPlateCoordinates(row,col))
-                    xlabel('time [min]')
-                    ylabel('OD')
-                    grid on
-                    %semilogy(sortedData(idx).time*60,sortedData(idx).OD,'r')
-                    %if fitTimeManual already exists, plot it
-                    y_lim=get(gca,'ylim');
-                    if length(sortedData(idx).fitTimeManual)==2 % not foolproof                       
-                        plot([sortedData(idx).fitTimeManual(1)*60 sortedData(idx).fitTimeManual(1)*60],y_lim,'-k','LineWidth',2);
-                        plot([sortedData(idx).fitTimeManual(2)*60 sortedData(idx).fitTimeManual(2)*60],y_lim,'-k','LineWidth',2);
-                    end
-                    % plot alternative fitTimeManual according to OD thresholds
-                    plot([sortedData(idx).fitTime(1)*60 sortedData(idx).fitTime(1)*60],y_lim,'-m');
-                    plot([sortedData(idx).fitTime(2)*60 sortedData(idx).fitTime(2)*60],y_lim,'-m');
-                    
-
-                    fitTimeManualstr=input(['sortedData('  num2str(idx)  ...
-                        '). fitTimeManual='],'s');
-                    if strcmp(fitTimeManualstr,'q')==1
-                        stopIt=1;
-                        continue
-                    end
-                    if strcmp(fitTimeManualstr,'f')~=1
-                        fitT=str2num(fitTimeManualstr);
-                        fitT=fitT/60; %convert to hours
-                        % invert if fitTimeManual(1)>fitTimeManual(2). check if fitTimeManual
-                        % consists of 2 entries
-                        if (fitT~=0 & ~isempty(fitT)) & (length(fitT)~=2 | fitT(1)==fitT(2))
-                            disp(['redo fitTimeManual'])
-                            fitT=[];
-                        elseif (fitT~=0 & ~isempty(fitT)) & fitT(1)>fitT(2)
-                            disp(['inverted start & end of fitTimeManual'])
-                            dummy=fitT(2); fitT(2)=fitT(1); fitT(1)=dummy;
-                        end
-                        sortedData(idx).fitTimeManual=fitT;
-
-                    end
-                end
-            end
-        end
-    end
-end
-clear fitTimeManualstr fitT col fitT fitTimeManualstr idx row startindex y_lim stopIt
-%}
-
-%{
-% Not used MW, untested by NW
-%% (5) optional (use if (4) was used, otherwise ignore)
-% ************************************************
-% check if some fitTimeManuals are accidently empty
-% ************************************************
-for i=1:length(sortedData)
-    if sortedData(i).realData==1 & isempty(sortedData(i).fitTimeManual)
-        disp(['fitTimeManual of sortedData(' num2str(i) ') is missing']);
-    end
-end         
-clear i
-%}
-
-%% (MW5b)
+%% (MW2b)
 % ************************************************ 
 % Plot all graphs grouped by category, without fitting
 % ************************************************
@@ -339,6 +212,11 @@ clear i
 PLOTIMEERROR = 0;
 HIDE_GRAPHS=1; % TODO MW - doesn't work
 windowSize=11; % needs to be odd number! - windowsize for moving average
+
+% For determining plateau values of plots
+myPlateauValues = []
+PLATEAUSTART = .9 % fraction of data after which averaging is performed 
+                  % to estimate plateau value.
 
 %create subSaveDirectory for these plots
 myJustPlotDir=[myPlotsSaveDir 'Rawplots\'];
@@ -359,8 +237,6 @@ for i=1:length(dummy);
         wellNames{end+1,1}=char(dummy(i));
     end
 end
-
-
 
 % -----------------------------------------------
 %loop over different groups in well (wellNames)
@@ -384,7 +260,7 @@ for nameidx=1:length(wellNames)
     xlabel('time [h]')
     ylabel('OD')      
     if HIDE_GRAPHS
-        set(gcf,'Visible','off'); % TODO MW - doesn't work
+        set(h,'Visible','off'); % TODO MW - doesn't work
     end         
     % logplots
     hlog=figure(2); 
@@ -396,7 +272,7 @@ for nameidx=1:length(wellNames)
     ylabel('OD')        
     % hide plots if desired  
     if HIDE_GRAPHS
-        set(gcf,'Visible','off'); % TODO MW - doesn't work
+        set(hlog,'Visible','off'); % TODO MW - doesn't work
     end     
     
     % -----------------------------------------------
@@ -508,15 +384,194 @@ for nameidx=1:length(wellNames)
 
     % close figures
     close(h); close(hlog);
-
+    
+    % Determine plateau values for this group
+    % (determined here as average of last 10% values.)
+    if DetermineAveragesWells
+        % If average line was determined use that one
+        range = [ceil(size(myMeanCurrentDataOD_substr,2)*PLATEAUSTART) size(myMeanCurrentDataOD_substr,2)]; % Note transposed w. respect myCurrentDataOD_substr
+        currentPlateauValues = mean(myMeanCurrentDataOD_substr(range));
+    else
+        % Otherwise use single datapoints
+        range = [ceil(size(myCurrentDataOD_substr,1)*.9) size(myCurrentDataOD_substr,1)];
+        currentPlateauValues = mean(myCurrentDataOD_substr(range));
+    end
+    myPlateauValues = [myPlateauValues currentPlateauValues];
       
 end
 % and loop over all names (different exp's)
 % -----------------------------------------------
 
+% Save estimates of plateau values
+h = figure();
+barh(myPlateauValues);
+set(gca, 'YTick', [1:length(wellNames)]);
+set(gca, 'YTickLabel', wellNames);
+
+% save with (moving) averages on linear scale
+figFullName=[myJustPlotDir 'plateauvalues' ];
+saveas(h,[figFullName '.fig'], 'fig');
+saveas(h,[figFullName '.png'], 'png');
+
+% also save these to textfile (code adapted from Noreen/Daan)
+% give some output for growthrates and save them in .txt file. 
+%-------------------------------------------------
+fid = fopen([myJustPlotDir 'plateauvalues.txt'],'wt');
+% function from Daan
+disp(['  ']); disp(['   '])
+dispAndWrite(fid, ['--------------------------------------------------------------']);
+dispAndWrite(fid, ['Plateau values (' num2str(PLATEAUSTART) '-1.0 fraction of data)']);
+dispAndWrite(fid, ['--------------------------------------------------------------']);
+for i=1:length(myPlateauValues)
+    str = sprintf('''%15s'';''%1.4f''', ...
+        char(wellNames(i)), myPlateauValues(i));
+    dispAndWrite(fid,str);
+end
+fclose(fid);
+
+filename = [myJustPlotDir 'plateauvalues.xlsx'];
+%myPlateauTable=table(wellNames,myPlateauValues'; 
+myPlateauTable=cell([wellNames,num2cell(myPlateauValues')]);
+xlswrite(filename,myPlateauTable,'Plateauvalues','B2');
+
 clear dummy nameidx name muAccum muManualAccum
 clear xlimfit ylimfit colorcounter mylegendText g h fitTimeManualext ODcalcManual  ODcalc
 clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODminline
+
+
+
+%% (3)
+% ************************************************
+%choose fitTime according to OD thresholds 
+% ************************************************
+% Change OD range here (standard = [0.03, 0.08]):
+ODmin=2*10^-3; ODmax=8*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
+
+%reset all actual data to 'real data' -> also "bad wells"are considered for
+% fitting as real data. only background and blank are not considered.
+% bad data can be excluded at point (8)
+for i=1:length(sortedData)
+    realData=(strcmp(sortedData(i).DescriptionPos,'blank')==0 & strcmp(sortedData(i).DescriptionPos,'x')==0);
+    sortedData(i).realData=realData;
+end
+
+%create subSaveDirectory according to fit OD
+myPlotsSaveDirODsub=[myPlotsSaveDir 'ODmin'  num2str(ODmin) 'ODmax' num2str(ODmax) '\'];
+if exist(myPlotsSaveDirODsub)~=7
+  [status,msg,id] = mymkdir([myPlotsSaveDirODsub]);
+  if status == 0
+    disp(['Warning: unable to mkdir ' myPlotssSaveDirODsub ' : ' msg]);
+    return;
+  end
+end
+
+
+
+for i=1:length(sortedData)
+    if sortedData(i).realData==1 % ignore blanks and empty wells
+        
+        idxODminOrHigher=find(sortedData(i).OD_subtr>ODmin);
+        idxODmaxOrLower=find(sortedData(i).OD_subtr<ODmax);
+        
+        idxMin=min(idxODminOrHigher);
+        idxMax=max(idxODmaxOrLower);
+        
+        sortedData(i).fitTime=[sortedData(i).time(idxMin), sortedData(i).time(idxMax)];
+        
+    else sortedData(i).fitTime=[];
+    end
+end
+clear i idxODmaxOrLower idxODminOrHigher idxMin idxMax status msg id
+
+%{
+% Not used MW, untested by NW
+%% (4) optional
+% ************************************************
+% loop over all wells and choose fitTimeManual
+% if 'x','blank' or bad data, fitTimeManual is set to =0
+% ************************************************
+% this cell is older and because of that a little akwardly written. it is
+% correct but not written in the most optimal way
+%
+stopIt=0;
+
+startindex=input('Startindex=');
+disp('enter 2 numbers seperated by space for each fitTimeManual. Use 0 (1 single number) if data is')
+disp('bad and shall be omitted. Pressing space (empty fitTimeManual) is interpreted as not reviewed.')
+disp('To stop, press ''q''. If you want to keep old fitTimeManual, press ''f''.') %f=forward 
+for row=1:size(DescriptionPlateCoordinates,1)
+    for col=1:size(DescriptionPlateCoordinates,2)
+        idx=find(strcmp(wellCoordinates,PositionNames(row,col))==1);
+        if idx>=startindex & stopIt==0
+            if strcmp(DescriptionPlateCoordinates(row,col),'x')==1 | strcmp(DescriptionPlateCoordinates(row,col),'blank')==1
+                sortedData(idx).fitTimeManual=0;
+            else
+                fitTimeManualstr='review';
+                while strcmp(fitTimeManualstr,'f')==0  & stopIt==0
+                    figure(2)
+                    clf
+                    semilogy(sortedData(idx).time*60,sortedData(idx).OD_subtr)
+                    hold on
+                    title(DescriptionPlateCoordinates(row,col))
+                    xlabel('time [min]')
+                    ylabel('OD')
+                    grid on
+                    %semilogy(sortedData(idx).time*60,sortedData(idx).OD,'r')
+                    %if fitTimeManual already exists, plot it
+                    y_lim=get(gca,'ylim');
+                    if length(sortedData(idx).fitTimeManual)==2 % not foolproof                       
+                        plot([sortedData(idx).fitTimeManual(1)*60 sortedData(idx).fitTimeManual(1)*60],y_lim,'-k','LineWidth',2);
+                        plot([sortedData(idx).fitTimeManual(2)*60 sortedData(idx).fitTimeManual(2)*60],y_lim,'-k','LineWidth',2);
+                    end
+                    % plot alternative fitTimeManual according to OD thresholds
+                    plot([sortedData(idx).fitTime(1)*60 sortedData(idx).fitTime(1)*60],y_lim,'-m');
+                    plot([sortedData(idx).fitTime(2)*60 sortedData(idx).fitTime(2)*60],y_lim,'-m');
+                    
+
+                    fitTimeManualstr=input(['sortedData('  num2str(idx)  ...
+                        '). fitTimeManual='],'s');
+                    if strcmp(fitTimeManualstr,'q')==1
+                        stopIt=1;
+                        continue
+                    end
+                    if strcmp(fitTimeManualstr,'f')~=1
+                        fitT=str2num(fitTimeManualstr);
+                        fitT=fitT/60; %convert to hours
+                        % invert if fitTimeManual(1)>fitTimeManual(2). check if fitTimeManual
+                        % consists of 2 entries
+                        if (fitT~=0 & ~isempty(fitT)) & (length(fitT)~=2 | fitT(1)==fitT(2))
+                            disp(['redo fitTimeManual'])
+                            fitT=[];
+                        elseif (fitT~=0 & ~isempty(fitT)) & fitT(1)>fitT(2)
+                            disp(['inverted start & end of fitTimeManual'])
+                            dummy=fitT(2); fitT(2)=fitT(1); fitT(1)=dummy;
+                        end
+                        sortedData(idx).fitTimeManual=fitT;
+
+                    end
+                end
+            end
+        end
+    end
+end
+clear fitTimeManualstr fitT col fitT fitTimeManualstr idx row startindex y_lim stopIt
+%}
+
+%{
+% Not used MW, untested by NW
+%% (5) optional (use if (4) was used, otherwise ignore)
+% ************************************************
+% check if some fitTimeManuals are accidently empty
+% ************************************************
+for i=1:length(sortedData)
+    if sortedData(i).realData==1 & isempty(sortedData(i).fitTimeManual)
+        disp(['fitTimeManual of sortedData(' num2str(i) ') is missing']);
+    end
+end         
+clear i
+%}
+
+
 
 
 %% (6)
