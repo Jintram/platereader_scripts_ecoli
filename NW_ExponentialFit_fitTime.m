@@ -11,9 +11,6 @@ log2_y_sub = log2(y_sub);
 
 % apparently sometimes data gets processed to be imaginary - 
 % prevent this:
-% TODO MW: Not entirely sure whether this is completely true, as I never 
-% see the disp printed. In any case some non-straight line fites result 
-% without this section of code.
 if ~isreal(log2_y_sub)
     disp('Note: Converting imaginary data to real.');    
     log2_y_sub = real(log2_y_sub);
