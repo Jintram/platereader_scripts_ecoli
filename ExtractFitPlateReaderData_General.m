@@ -751,6 +751,13 @@ for i=1:size(muAvStdev,1)
 end
 fclose(fid);
 
+% Output above table also to Excel file
+filename = [myFullDir 'FittedGrowthRateData_ODrange' num2str(ODmin) '_' num2str(ODmax) '.xlsx'];
+%disp(['Saving ' filename]);
+%myPlateauTable=table(wellNames,myPlateauValues'; 
+myDataTable=cell([wellNames,num2cell(muAvStdev)])
+xlswrite(filename,myDataTable,'FittedGrowthRateData','B2');
+
 %save 'sortedData' and growthrate data  'muAvStdev'
 save([myFullDir 'CompleteAnalyzedData.mat'],'sortedData','muAvStdev');
 
