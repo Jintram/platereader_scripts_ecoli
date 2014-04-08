@@ -515,10 +515,9 @@ USESMOOTH = 1;
 % If smoothing desired, overwrite original data (TODO MW - change this?!)
 if USESMOOTH
     for i = [1:length(sortedData)]
-        disp(['i=' num2str(i)]);
-        for j = sortedData(i).rangeMovingAverage
-            disp(['j=' num2str(j)]);
-            sortedData(i).OD_subtr(j) = sortedData(i).movingAverage(j);
+        for j = [1:length(sortedData(i).rangeMovingAverage)]
+            
+            sortedData(i).OD_subtr(sortedData(i).rangeMovingAverage(j)) = sortedData(i).movingAverage(j);
         end
     end
 end
@@ -883,9 +882,9 @@ for nameidx=1:length(wellNames)
 
                 %collect data for legend
                 if isempty(mylegendText)
-                    mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual) , ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
+                    mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual) , ', datapoints = ',num2str(length(sortedData(i).fitRangeManual)),'' '''' ];
                 else
-                    mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual), ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
+                    mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual), ', datapoints = ',num2str(length(sortedData(i).fitRangeManual)),'' '''' ];
                 end
                
             end
