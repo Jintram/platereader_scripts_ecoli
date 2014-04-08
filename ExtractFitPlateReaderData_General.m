@@ -475,8 +475,9 @@ for i=1:length(sortedData)
             % Plot the current well
             clf;
             hold on
+            set(gca, 'Yscale', 'log');
             xlabel('time [h]')
-            ylabel('OD')
+            ylabel('OD')            
             title([sortedData(i).DescriptionPos ' - PLEASE DETERMINE {X1,X2} FOR FITRANGE'])
               
             % Plot linear scale            
@@ -506,7 +507,24 @@ close(m);
 % ************************************************
 % fit growth rate to each graph
 % ************************************************
+
+% Set whether data should be smoothed first (i.e. whether moving avg should
+% be used as input).
+USESMOOTH = 1;
+
+% If smoothing desired, overwrite original data (TODO MW - change this?!)
+if USESMOOTH
+    for i = [1:length(sortedData)]
+        disp(['i=' num2str(i)]);
+        for j = sortedData(i).rangeMovingAverage
+            disp(['j=' num2str(j)]);
+            sortedData(i).OD_subtr(j) = sortedData(i).movingAverage(j);
+        end
+    end
+end
+
 for i=1:length(sortedData)
+        
     % fit growth rate according to fitTimeManual
     if (sortedData(i).realData==1 & ~isempty(sortedData(i).fitTimeManual)) %bad data has '0' as entry in fitTimeManual
         [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTimeManual);
@@ -739,7 +757,8 @@ end
 fclose(fid);
 
 % Output above table also to Excel file
-filename = [myFullDir 'FittedGrowthRateData_ODrange' num2str(ODmin) '_' num2str(ODmax) '.xlsx'];
+if USESMOOTH smoothyesnow='SMOOTHED'; else smoothyesnow=''; end
+filename = [myFullDir 'FittedGrowthRateData_' smoothyesnow 'ODrange' num2str(ODmin) '_' num2str(ODmax) '.xlsx'];
 %disp(['Saving ' filename]);
 %myPlateauTable=table(wellNames,myPlateauValues'; 
 % Sheet w. averages and stds mu
@@ -773,8 +792,6 @@ for nameidx=1:length(wellNames)
     if ismember(wellNames(nameidx),NoManualRange)
         disp(['Skipping group ' name]);
         continue
-    else % MW TODO remove
-            disp(['Group ' name]);
     end
        
     muAccum=[];
@@ -792,7 +809,7 @@ for nameidx=1:length(wellNames)
         clf
         set(gca, 'Yscale', 'log');
         hold on
-        title(['Log-Plot. ' name '.  mu fitted manually']);
+        title(['Log-Plot. ' name '.  mu fitted manually, USESMOOTH=' num2str(USESMOOTH)]);
         %hold on  % "hold on" only after first semilogy-plot
         xlabel('time [h]');
         ylabel('log_10(OD)','Interpreter','None');
@@ -829,45 +846,48 @@ for nameidx=1:length(wellNames)
                 plot(sortedData(i).time(fitRangeManual),sortedData(i).OD_subtr(fitRangeManual),'x','Color',currentColor,'MarkerSize',6,'LineWidth',3);
 
                 % plot fitted growth rate
-                if ~isempty(sortedData(i).mu) 
-                        fitTimeext=[sortedData(i).fitTimeManual(1)-1:0.01:sortedData(i).fitTimeManual(2)+1];  %in [h]
-                        ODcalc=sortedData(i).x0Manual*2.^(sortedData(i).muManual*fitTimeext);
-                        %fitline=plot(fitTimeext,log(ODcalc)/log(2),'-','Color',currentColor);
-                        fitline=plot(fitTimeext,ODcalc,'-','Color',currentColor,'LineWidth',2);
-                            set(get(get(fitline,'Annotation'),'LegendInformation'),...
-                            'IconDisplayStyle','off'); % Exclude line from legend                            
-                end
+                if ~isempty(sortedData(i).muManual) 
+                    
+                    fitTimeext=[sortedData(i).fitTimeManual(1)-1:0.01:sortedData(i).fitTimeManual(2)+1];  %in [h]
+                    disp('hi');
+                    ODcalc=sortedData(i).x0Manual*2.^(sortedData(i).muManual*fitTimeext);
+                    %fitline=plot(fitTimeext,log(ODcalc)/log(2),'-','Color',currentColor);
+                    fitline=plot(fitTimeext,ODcalc,'-','Color',currentColor,'LineWidth',2);
+                        set(get(get(fitline,'Annotation'),'LegendInformation'),...
+                        'IconDisplayStyle','off'); % Exclude line from legend                            
+                
+                    % get correct xlim and ylim. Also takes ignored data into
+                    % account!! can be changed with a if ... .realdata
+                    % condition
+                    ylimMaxDescriptionPos=max(ylimMaxDescriptionPos,max(sortedData(i).OD_subtr)*1.05);
+                    if length(sortedData(i).fitTime)==2 %exclude failed wells where OD threshold is not reached
+                        xlimfit(1)=min(xlimfit(1),fitTimeext(1)*0.8); xlimfit(2)=max(xlimfit(2),fitTimeext(end)*1.05);
+                        ylimfit(1)=min(ylimfit(1),ODcalc(1))*0.8; ylimfit(2)=max(ylimfit(2),ODcalc(end)*1.05);
+                    else 
+                        xlimfit=[sortedData(i).time(1), sortedData(i).time(end)];
+                        ylimfit(1)=0;
+                        ylimfit(2)=max(sortedData(i).OD_subtr*1.05);
 
-                % get correct xlim and ylim. Also takes ignored data into
-                % account!! can be changed with a if ... .realdata
-                % condition
-                ylimMaxDescriptionPos=max(ylimMaxDescriptionPos,max(sortedData(i).OD_subtr)*1.05);
-                if length(sortedData(i).fitTime)==2 %exclude failed wells where OD threshold is not reached
-                    xlimfit(1)=min(xlimfit(1),fitTimeext(1)*0.8); xlimfit(2)=max(xlimfit(2),fitTimeext(end)*1.05);
-                    ylimfit(1)=min(ylimfit(1),ODcalc(1))*0.8; ylimfit(2)=max(ylimfit(2),ODcalc(end)*1.05);
-                else 
-                    xlimfit=[sortedData(i).time(1), sortedData(i).time(end)];
-                    ylimfit(1)=0;
-                    ylimfit(2)=max(sortedData(i).OD_subtr*1.05);
+                    end
+                    if (xlimfit(1)>xlimfit(2)) & ylimfit(1)>ylimfit(2)
+                        xlimfit=[min(sortedData(i).time) max(sortedData(i).time)];
+                        ylimfit=[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; 
+                    end
+                    xlim([xlimfit(1) xlimfit(2)+1]);  %blubb
+                    %ylim([log(ODcalc(1))/log(2)-1    log(ODcalc(end))/log(2)+1]);
+                    ylim([ylimfit(1) ylimfit(2)*2]);
 
+                   % dataidx=[dataidx,i];
+                   % usedColors=[usedColors;currentColor];
                 end
-                if (xlimfit(1)>xlimfit(2)) & ylimfit(1)>ylimfit(2)
-                    xlimfit=[min(sortedData(i).time) max(sortedData(i).time)];
-                    ylimfit=[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; 
-                end
-                xlim([xlimfit(1) xlimfit(2)+1]);  %blubb
-                %ylim([log(ODcalc(1))/log(2)-1    log(ODcalc(end))/log(2)+1]);
-                ylim([ylimfit(1) ylimfit(2)*2]);
 
                 %collect data for legend
                 if isempty(mylegendText)
-                    mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu) , ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
+                    mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual) , ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
                 else
-                    mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu), ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
+                    mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual), ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
                 end
-               % dataidx=[dataidx,i];
-               % usedColors=[usedColors;currentColor];
-
+               
             end
 
         end
