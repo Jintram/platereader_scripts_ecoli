@@ -385,7 +385,7 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % XXXXXXXXXXXXXXXX
 % Change OD range here (standard = [0.03, 0.08]):
 % XXXXXXXXXXXXXXXX
-ODmin=2*10^-3; ODmax=8*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
+ODmin=4*10^-3; ODmax=13*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.
@@ -923,7 +923,7 @@ for nameidx=1:length(wellNames)    %blubb
             end
         end
         
-        eval(['legend(', mylegendText, ',''Location'',''NW'')']);
+        eval(['legend(', mylegendText, ',''Location'',''Best'')']);
         figFullName=[myPlotsSaveDirLogODsub 'GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
         saveas(h,[figFullName '.png'], 'png');
