@@ -103,6 +103,7 @@ for i=1:length(wellCoordinates)
     sortedData(i).fitTime=[];    
     sortedData(i).fitTimeManual=[];
     sortedData(i).fitRange=[];
+    sortedData(i).fitRangeManual=[];    
     [idx_row,idx_col]=find(strcmp(PositionNames,wellCoordinates(i))==1);
     sortedData(i).DescriptionPos=char(DescriptionPlateCoordinates(idx_row,idx_col));
     realData=(strcmp(sortedData(i).DescriptionPos,'blank')==0 & strcmp(sortedData(i).DescriptionPos,'x')==0);
@@ -136,6 +137,22 @@ for i=1:length(sortedData)
     sortedData(i).time=sortedData(i).time(idxod);
     sortedData(i).OD=sortedData(i).OD(idxod);
     
+end
+
+% Group wells together by wellNames.
+% Each cell of membersOfGroups contains a list of indices that point to
+% sortedData entries that belong to the same group (i.e. the same
+% wellName). The index of membersOfGroups itself corresponds to the index
+% of wellNames.
+membersOfGroup={}
+for i = [1:length(wellNames)]
+    currentGroupMembers=[];
+    for j = [1:length(sortedData)]
+        if strcmp(wellNames(i),sortedData(j).DescriptionPos)
+            currentGroupMembers = [currentGroupMembers j];
+        end
+    end
+    membersOfGroup(end+1) = {currentGroupMembers};
 end
 
 %----------------------------------------------------------
@@ -203,16 +220,11 @@ for i=1:length(sortedData)
 end
 clear SHOW_FIG_BLANK blank_row blank_col numBlanks i idx wellName
 
-%% (MW2b)
+%% (3)
 % ************************************************ 
 % Plot all graphs grouped by category, without fitting
 % ************************************************
 
-% IMPORTANT NOTE: wells are not measured at the same points in time,
-% so I determine the average for each of these points, set PLOTIMEERROR=1
-% to see these deviations!
-
-PLOTIMEERROR = 0;
 HIDE_GRAPHS=1; % TODO MW - doesn't work
 windowSize=21; % needs to be odd number! - windowsize for moving average
 
@@ -281,8 +293,7 @@ for nameidx=1:length(wellNames)
     % -----------------------------------------------
     %  loop over all wells and search for matching description (same
     %  'name')
-    % (TODO MW: might be done more elegantly by building dictionary
-    % at beginning, and then selecting appropiate indexes using this.)
+    % MW TODO: use membersOfGroup for this.
     % -----------------------------------------------
     myCurrentDataTime = []; myCurrentDataOD_substr = []; myCurrentColors = [];
     for i=1:length(sortedData) 
@@ -378,7 +389,7 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 
 
 
-%% (3)
+%% (4)
 % ************************************************
 %choose fitTime according to OD thresholds 
 % ************************************************
@@ -441,96 +452,55 @@ for i=1:length(sortedData)
 end
 clear i idxODmaxOrLower idxODminOrHigher idxMin idxMax status msg id
 
-%{
-% Not used MW, untested by NW
-%% (4) optional
+%% (5)
 % ************************************************
-% loop over all wells and choose fitTimeManual
-% if 'x','blank' or bad data, fitTimeManual is set to =0
+% Select manual fitranges
 % ************************************************
-% this cell is older and because of that a little akwardly written. it is
-% correct but not written in the most optimal way
-%
-stopIt=0;
 
-startindex=input('Startindex=');
-disp('enter 2 numbers seperated by space for each fitTimeManual. Use 0 (1 single number) if data is')
-disp('bad and shall be omitted. Pressing space (empty fitTimeManual) is interpreted as not reviewed.')
-disp('To stop, press ''q''. If you want to keep old fitTimeManual, press ''f''.') %f=forward 
-for row=1:size(DescriptionPlateCoordinates,1)
-    for col=1:size(DescriptionPlateCoordinates,2)
-        idx=find(strcmp(wellCoordinates,PositionNames(row,col))==1);
-        if idx>=startindex & stopIt==0
-            if strcmp(DescriptionPlateCoordinates(row,col),'x')==1 | strcmp(DescriptionPlateCoordinates(row,col),'blank')==1
-                sortedData(idx).fitTimeManual=0;
-            else
-                fitTimeManualstr='review';
-                while strcmp(fitTimeManualstr,'f')==0  & stopIt==0
-                    figure(2)
-                    clf
-                    semilogy(sortedData(idx).time*60,sortedData(idx).OD_subtr)
-                    hold on
-                    title(DescriptionPlateCoordinates(row,col))
-                    xlabel('time [min]')
-                    ylabel('OD')
-                    grid on
-                    %semilogy(sortedData(idx).time*60,sortedData(idx).OD,'r')
-                    %if fitTimeManual already exists, plot it
-                    y_lim=get(gca,'ylim');
-                    if length(sortedData(idx).fitTimeManual)==2 % not foolproof                       
-                        plot([sortedData(idx).fitTimeManual(1)*60 sortedData(idx).fitTimeManual(1)*60],y_lim,'-k','LineWidth',2);
-                        plot([sortedData(idx).fitTimeManual(2)*60 sortedData(idx).fitTimeManual(2)*60],y_lim,'-k','LineWidth',2);
-                    end
-                    % plot alternative fitTimeManual according to OD thresholds
-                    plot([sortedData(idx).fitTime(1)*60 sortedData(idx).fitTime(1)*60],y_lim,'-m');
-                    plot([sortedData(idx).fitTime(2)*60 sortedData(idx).fitTime(2)*60],y_lim,'-m');
-                    
+% Some additional wells to be ignored aside from those marked with 
+% realData=0.
+NoManualRange = {'H2O','15A','15B','15C','16A','16B','16C','17A','17B','17C'};
+% These are important for plotting later
+NoManualRange(end+1)={'blank'};
+NoManualRange(end+1)={'x'};
 
-                    fitTimeManualstr=input(['sortedData('  num2str(idx)  ...
-                        '). fitTimeManual='],'s');
-                    if strcmp(fitTimeManualstr,'q')==1
-                        stopIt=1;
-                        continue
-                    end
-                    if strcmp(fitTimeManualstr,'f')~=1
-                        fitT=str2num(fitTimeManualstr);
-                        fitT=fitT/60; %convert to hours
-                        % invert if fitTimeManual(1)>fitTimeManual(2). check if fitTimeManual
-                        % consists of 2 entries
-                        if (fitT~=0 & ~isempty(fitT)) & (length(fitT)~=2 | fitT(1)==fitT(2))
-                            disp(['redo fitTimeManual'])
-                            fitT=[];
-                        elseif (fitT~=0 & ~isempty(fitT)) & fitT(1)>fitT(2)
-                            disp(['inverted start & end of fitTimeManual'])
-                            dummy=fitT(2); fitT(2)=fitT(1); fitT(1)=dummy;
-                        end
-                        sortedData(idx).fitTimeManual=fitT;
+% Set figure
+m=figure(1);
 
-                    end
-                end
-            end
+for i=1:length(sortedData) 
+        
+        % unless not to be set manually
+        if ~ismember(sortedData(i).DescriptionPos,NoManualRange) & sortedData(i).realData
+            
+            % Plot the current well
+            clf;
+            hold on
+            xlabel('time [h]')
+            ylabel('OD')
+            title([sortedData(i).DescriptionPos ' - PLEASE DETERMINE {X1,X2} FOR FITRANGE'])
+              
+            % Plot linear scale            
+            %plot(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
+            % Plot log scale
+            semilogy(sortedData(i).time,sortedData(i).OD_subtr','x','Color',[.5 .5 .5],'Linewidth',2);
+            semilogy(sortedData(i).time(sortedData(i).rangeMovingAverage),sortedData(i).movingAverage','-','Color','r','Linewidth',2);
+                                  
+            % set manual range by using ginput
+            myxy = ginput();
+            
+            % set fitTime
+            fitTimeManual = myxy(:,1)'
+            sortedData(i).fitTimeManual = fitTimeManual;
+            
+            % also update fitrange
+            sortedData(i).fitRangeManual = ...
+                find(sortedData(i).time>=fitTimeManual(1) & sortedData(i).time<= fitTimeManual(2));
+            
         end
-    end
 end
-clear fitTimeManualstr fitT col fitT fitTimeManualstr idx row startindex y_lim stopIt
-%}
 
-%{
-% Not used MW, untested by NW
-%% (5) optional (use if (4) was used, otherwise ignore)
-% ************************************************
-% check if some fitTimeManuals are accidently empty
-% ************************************************
-for i=1:length(sortedData)
-    if sortedData(i).realData==1 & isempty(sortedData(i).fitTimeManual)
-        disp(['fitTimeManual of sortedData(' num2str(i) ') is missing']);
-    end
-end         
-clear i
-%}
-
-
-
+close(m);
+   
 
 %% (6)
 % ************************************************
@@ -538,7 +508,7 @@ clear i
 % ************************************************
 for i=1:length(sortedData)
     % fit growth rate according to fitTimeManual
-    if (sortedData(i).realData==1 & length(sortedData(i).fitTimeManual)==2) %bad data has '0' as entry in fitTimeManual
+    if (sortedData(i).realData==1 & ~isempty(sortedData(i).fitTimeManual)) %bad data has '0' as entry in fitTimeManual
         [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTimeManual);
         sortedData(i).muManual=muManual;
         sortedData(i).x0Manual=x0Manual;
@@ -546,6 +516,7 @@ for i=1:length(sortedData)
         sortedData(i).muManual=[];
         sortedData(i).x0Manual=[];
     end
+    
     % fit growth rate according to fitTime (determined by OD thresholds)
     if sortedData(i).realData==1 & length(sortedData(i).fitTime)==2 %exclude failed wells where OD threshold is not reached
         % test if fitTime range contains enough data points (2) to perform
@@ -643,6 +614,7 @@ for nameidx=1:length(wellNames)    %blubb
     % -----------------------------------------------
     %  loop over all wells and search for matching description (same
     %  'name')
+    % MW TODO: use membersOfGroup for this.
     % -----------------------------------------------
     for i=1:length(sortedData) 
         if strcmp(sortedData(i).DescriptionPos,name)==1
@@ -784,6 +756,163 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 
 %% (7b)----------------------------
 % -------------------------
+% Plot half-logarithmic plots for manual fit ranges
+% -------------------------
+% Manual Fit range not implemented in log-plots!
+SHOW_FIG_FIT=1;
+
+
+% -----------------------------------------------
+%loop over different groups in well (wellNames)
+% -----------------------------------------------
+for nameidx=1:length(wellNames)           
+    
+    name=char(wellNames(nameidx));    
+    
+    % exclude well groups for which manual range is not set + above
+    if ismember(wellNames(nameidx),NoManualRange)
+        disp(['Skipping group ' name]);
+        continue
+    else % MW TODO remove
+            disp(['Group ' name]);
+    end
+       
+    muAccum=[];
+    muManualAccum=[];
+    xlimfit=[10000 0]; %[min(sortedData(i).time) max(sortedData(i).time)]; %start with extreme values
+    ylimfit=[10000 0]; %[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; %start with extreme values
+    colorcounter=0;
+  %  usedColors=[]; % needed for legend in correct color
+  %  dataidx=[]; % array with indices of sortedData that contain 'name'
+    mylegendText=[];
+    
+    % initiate PLOTS
+    if SHOW_FIG_FIT
+        h=figure('Position',[100 100 900 700]);
+        clf
+        set(gca, 'Yscale', 'log');
+        hold on
+        title(['Log-Plot. ' name '.  mu fitted manually']);
+        %hold on  % "hold on" only after first semilogy-plot
+        xlabel('time [h]');
+        ylabel('log_10(OD)','Interpreter','None');
+    end   
+    
+    ylimMaxDescriptionPos=0; %get max OD (y axis) of repetitive measurements to adjust full axis range
+        
+    % obtain indices of data with wellname(i)
+    currentDataIdx = cell2mat(membersOfGroups(nameidx));
+    % see if a manual fit exists here
+    %sortedData(currentDataIdx).fitTimeManual
+
+    for i = currentDataIdx
+
+        if ~isempty(sortedData(i).fitTimeManual)
+        
+            colorcounter=colorcounter+1;
+            % add data for average growth rate if realData is set to =1 )and
+            % if manualFitTime exists)
+            if sortedData(i).realData==1
+                muAccum=[muAccum, sortedData(i).muManual];
+            end
+
+            % PLOT 
+            if SHOW_FIG_FIT
+                
+                figure(h)
+                % plot those graphs for which manual fitTime is chosen
+                currentColor=myColor(colorcounter,:);
+                %plot(sortedData(i).time,log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'Markersize',3);
+                plot(sortedData(i).time,sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',3);
+                % Highlight datapoint used for fit
+                fitRangeManual=sortedData(i).fitRangeManual;
+                plot(sortedData(i).time(fitRangeManual),sortedData(i).OD_subtr(fitRangeManual),'x','Color',currentColor,'MarkerSize',6,'LineWidth',3);
+
+                % plot fitted growth rate
+                if ~isempty(sortedData(i).mu) 
+                        fitTimeext=[sortedData(i).fitTimeManual(1)-1:0.01:sortedData(i).fitTimeManual(2)+1];  %in [h]
+                        ODcalc=sortedData(i).x0Manual*2.^(sortedData(i).muManual*fitTimeext);
+                        %fitline=plot(fitTimeext,log(ODcalc)/log(2),'-','Color',currentColor);
+                        fitline=plot(fitTimeext,ODcalc,'-','Color',currentColor,'LineWidth',2);
+                            set(get(get(fitline,'Annotation'),'LegendInformation'),...
+                            'IconDisplayStyle','off'); % Exclude line from legend                            
+                end
+
+                % get correct xlim and ylim. Also takes ignored data into
+                % account!! can be changed with a if ... .realdata
+                % condition
+                ylimMaxDescriptionPos=max(ylimMaxDescriptionPos,max(sortedData(i).OD_subtr)*1.05);
+                if length(sortedData(i).fitTime)==2 %exclude failed wells where OD threshold is not reached
+                    xlimfit(1)=min(xlimfit(1),fitTimeext(1)*0.8); xlimfit(2)=max(xlimfit(2),fitTimeext(end)*1.05);
+                    ylimfit(1)=min(ylimfit(1),ODcalc(1))*0.8; ylimfit(2)=max(ylimfit(2),ODcalc(end)*1.05);
+                else 
+                    xlimfit=[sortedData(i).time(1), sortedData(i).time(end)];
+                    ylimfit(1)=0;
+                    ylimfit(2)=max(sortedData(i).OD_subtr*1.05);
+
+                end
+                if (xlimfit(1)>xlimfit(2)) & ylimfit(1)>ylimfit(2)
+                    xlimfit=[min(sortedData(i).time) max(sortedData(i).time)];
+                    ylimfit=[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; 
+                end
+                xlim([xlimfit(1) xlimfit(2)+1]);  %blubb
+                %ylim([log(ODcalc(1))/log(2)-1    log(ODcalc(end))/log(2)+1]);
+                ylim([ylimfit(1) ylimfit(2)*2]);
+
+                %collect data for legend
+                if isempty(mylegendText)
+                    mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu) , ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
+                else
+                    mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).mu), ', datapoints = ',num2str(length(sortedData(i).fitRange)),'' '''' ];
+                end
+               % dataidx=[dataidx,i];
+               % usedColors=[usedColors;currentColor];
+
+            end
+
+        end
+        
+    end
+            
+    %    end
+    %end
+    % end loop over all data and search for repetitions with same 'name'
+    % -----------------------------------------------
+    muAvStdev(nameidx,:)=[mean(muAccum),std(muAccum),length(muAccum), mean(muManualAccum),...
+        std(muManualAccum),length(muManualAccum)];
+    
+    %create legend and save image
+    if SHOW_FIG_FIT
+        %create save Directory for log images
+        myPlotsSaveDirLogODsub=[myPlotsSaveDir 'LogPlot_manualRange\'];        
+        if exist(myPlotsSaveDirLogODsub)~=7
+        [status,msg,id] = mymkdir([myPlotsSaveDirLogODsub]);
+            if status == 0
+                disp(['Warning: unable to mkdir ' myPlotssSaveDirLogODSub ' : ' msg]);
+                return;
+            end
+        end
+               
+        eval(['legend(', mylegendText, ',''Location'',''Best'')']);
+        figFullName=[myPlotsSaveDirLogODsub 'GrowthCurves_' name '_automaticFitTime'];
+        saveas(h,[figFullName '.fig'], 'fig');
+        saveas(h,[figFullName '.png'], 'png');
+        %save also image with full axis range
+        xlim([sortedData(1).time(1) sortedData(1).time(end)]);
+        %ylim([log(0.01)/log(2) log(ylimMaxDescriptionPos)/log(2)]);
+        ylim([0 ylimMaxDescriptionPos]);
+        figFullName=[myPlotsSaveDirLogODsub 'Full_GrowthCurves_' name '_automaticFitTime'];
+        saveas(h,[figFullName '.fig'], 'fig');
+        saveas(h,[figFullName '.png'], 'png');
+        close(h)
+    end
+    
+      
+end
+% and loop over all names (different exp's)
+
+%% (7c)----------------------------
+% -------------------------
 % Plot half-logarithmic plots to check range of exponential phase
 % -------------------------
 % Manual Fit range not implemented in log-plots!
@@ -831,6 +960,7 @@ for nameidx=1:length(wellNames)    %blubb
     % -----------------------------------------------
     %  loop over all wells and search for matching description (same
     %  'name')
+    % MW TODO: use membersOfGroup for this.
     % -----------------------------------------------
     for i=1:length(sortedData) 
         if strcmp(sortedData(i).DescriptionPos,name)==1
@@ -914,7 +1044,7 @@ for nameidx=1:length(wellNames)    %blubb
     %create legend and save image
     if SHOW_FIG_FIT
         %create save Directory for log images
-        myPlotsSaveDirLogODsub=[myPlotsSaveDir 'LogPlot_ODmin'  num2str(ODmin) 'ODmax' num2str(ODmax) '\'];
+        myPlotsSaveDirLogODsub=[myPlotsSaveDir 'LogPlot_ODmin'  num2str(ODmin) 'ODmax' num2str(ODmax) '\'];        
         if exist(myPlotsSaveDirLogODsub)~=7
         [status,msg,id] = mymkdir([myPlotsSaveDirLogODsub]);
             if status == 0
@@ -922,7 +1052,7 @@ for nameidx=1:length(wellNames)    %blubb
                 return;
             end
         end
-        
+               
         eval(['legend(', mylegendText, ',''Location'',''Best'')']);
         figFullName=[myPlotsSaveDirLogODsub 'GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
@@ -940,6 +1070,8 @@ for nameidx=1:length(wellNames)    %blubb
       
 end
 % and loop over all names (different exp's)
+
+
 
 % MW - want to keep data.
 %{
