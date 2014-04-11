@@ -772,7 +772,7 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % Save data to matlab file for later use
 
 %save 'sortedData' and growthrate data  'muAvStdev'
-save([myFullDir 'CompleteAnalyzedData.mat'],'sortedData','muAvStdev','membersOfGroup');
+save([myFullDir 'CompleteAnalyzedData.mat'],'sortedData','muAvStdev','membersOfGroup','wellNames');
 
 %% (7b)----------------------------
 % -------------------------
