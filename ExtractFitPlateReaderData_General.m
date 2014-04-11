@@ -139,12 +139,22 @@ for i=1:length(sortedData)
     
 end
 
+% Create list w. names of wells, excluding 'x' and 'blank'
+dummy=unique(DescriptionPlateCoordinates);
+wellNames={};
+for i=1:length(dummy);
+    if strcmp(dummy(i),'x')==0 & strcmp(dummy(i),'blank')==0  % HERE possibility to exclude 
+                                                              % more names (e.g. contaminated wells)
+        wellNames{end+1,1}=char(dummy(i));
+    end
+end
+
 % Group wells together by wellNames.
 % Each cell of membersOfGroups contains a list of indices that point to
 % sortedData entries that belong to the same group (i.e. the same
 % wellName). The index of membersOfGroups itself corresponds to the index
 % of wellNames.
-membersOfGroup={}
+membersOfGroup={};
 for i = [1:length(wellNames)]
     currentGroupMembers=[];
     for j = [1:length(sortedData)]
@@ -241,16 +251,6 @@ if exist(myJustPlotDir)~=7
     disp(['Warning: unable to mkdir ' myJustPlotDir ' : ' msg]);
     return;
   end
-end
-
-% names of wells, excluding 'x' and 'blank'
-dummy=unique(DescriptionPlateCoordinates);
-wellNames={};
-for i=1:length(dummy);
-    if strcmp(dummy(i),'x')==0 & strcmp(dummy(i),'blank')==0  % HERE possibility to exclude 
-                                                              % more names (e.g. contaminated wells)
-        wellNames{end+1,1}=char(dummy(i));
-    end
 end
 
 % -----------------------------------------------
@@ -555,7 +555,6 @@ for i=1:length(sortedData)
 end
 clear i muManual x0Manual mu x0 idx1 idx2
 
-
 %% (7) (use (8) to change with data should be used)
 % ************************************************
 % plot growth curves for each group of wells (that contains same
@@ -765,12 +764,15 @@ TitleLine={'name','mu','stdev(mu)','#repetitions','muManual','stdev(muManual)','
 myDataTable=cell([TitleLine;wellNames,num2cell(muAvStdev)])
 xlswrite(filename,myDataTable,'FittedGrowthRateData','B2');
 
-%save 'sortedData' and growthrate data  'muAvStdev'
-save([myFullDir 'CompleteAnalyzedData.mat'],'sortedData','muAvStdev');
-
 clear dummy nameidx name muAccum muManualAccum
 clear xlimfit ylimfit colorcounter mylegendText g h fitTimeManualext ODcalcManual  ODcalc
 clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODminline
+
+%% (MW)
+% Save data to matlab file for later use
+
+%save 'sortedData' and growthrate data  'muAvStdev'
+save([myFullDir 'CompleteAnalyzedData.mat'],'sortedData','muAvStdev','membersOfGroup');
 
 %% (7b)----------------------------
 % -------------------------
