@@ -501,7 +501,30 @@ for i=1:length(sortedData)
 end
 
 close(m);
-   
+
+% Save this manual selection
+myfitTimeManual = [];
+myfitRangeManual = {};
+for i = 1:length(sortedData)
+    % get current value fitTimeManual
+    currentmyfitTimeManual = sortedData(i).fitTimeManual;
+    % make zero to signal it doesnt exist
+    if isempty(currentmyfitTimeManual) currentmyfitTimeManual = [0, 0]; end
+    
+    % get current value fitRangeManual
+    currentmyfitRangeManual = sortedData(i).fitRangeManual;    
+    % make zero to signal it doesnt exist
+    if isempty(currentmyfitRangeManual) currentmyfitRangeManual = 0; end
+    
+    % Add to array
+    myfitTimeManual = [myfitTimeManual; currentmyfitTimeManual];
+    myfitRangeManual{end+1} = currentmyfitRangeManual;
+end
+
+% save this data 
+thetime=clock();
+mytime=[num2str(thetime(1)) '-' num2str(thetime(2)) '-' num2str(thetime(3)) '_' num2str(thetime(4)) '-' num2str(thetime(5))];
+save([myFullDir 'fitTimeManual_ranges' mytime '.mat'],'myfitTimeManual','myfitRangeManual');
 
 %% (6)
 % ************************************************
@@ -513,20 +536,34 @@ close(m);
 USESMOOTH = 1;
 
 % If smoothing desired, overwrite original data (TODO MW - change this?!)
+% MW BUG! overwriting original data is not allowed, as it might result in 
+% smoothing the data multiple times!!
 if USESMOOTH
+    % Copy data structure of OD_subtr to OD_subtr_smooth
+    for i = [1:length(sortedData)]        
+            sortedData(i).OD_subtr = sortedData(i).OD_subtr_smooth        
+    end
+        
+    % Smooth the newly created dataset
     for i = [1:length(sortedData)]
-        for j = [1:length(sortedData(i).rangeMovingAverage)]
-            
-            sortedData(i).OD_subtr(sortedData(i).rangeMovingAverage(j)) = sortedData(i).movingAverage(j);
+        for j = [1:length(sortedData(i).rangeMovingAverage)]            
+            sortedData(i).OD_subtr_smooth(sortedData(i).rangeMovingAverage(j)) = sortedData(i).movingAverage(j);
         end
     end
 end
+
 
 for i=1:length(sortedData)
         
     % fit growth rate according to fitTimeManual
     if (sortedData(i).realData==1 & ~isempty(sortedData(i).fitTimeManual)) %bad data has '0' as entry in fitTimeManual
-        [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTimeManual);
+        
+        if USESMOOTH
+            [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr_smooth,sortedData(i).fitTimeManual);            
+        else
+            [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTimeManual);
+        end
+        
         sortedData(i).muManual=muManual;
         sortedData(i).x0Manual=x0Manual;
     else
@@ -541,7 +578,11 @@ for i=1:length(sortedData)
         idx1=find(sortedData(i).time==sortedData(i).fitTime(1));
         idx2=find(sortedData(i).time==sortedData(i).fitTime(2));
         if idx2>=idx1+1
-            [mu,x0]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTime);
+            if USESMOOTH
+                [mu,x0]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr_smooth,sortedData(i).fitTime);
+            else
+                [mu,x0]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTime);
+            end
             sortedData(i).mu=mu;
             sortedData(i).x0=x0;
         else
