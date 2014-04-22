@@ -26,10 +26,10 @@
 % ************************************************
 % specify folder, date, etc
 % ************************************************
-myRootDir='U:\PROJECTS\Temperature_Mutants\platereader\';
+myRootDir='U:\EXPERIMENTAL_DATA\platereader\';
 myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
-myDateDir='2014_03_29\';
-datafile='2014_03_29_results_temperature_mutants';
+myDateDir='2014_04_20\';
+datafile='2014_04_20_results_regulation_mutants';
 
 % OD range to fit is set at comment "% Change OD range here".
 
@@ -541,7 +541,7 @@ USESMOOTH = 1;
 if USESMOOTH
     % Copy data structure of OD_subtr to OD_subtr_smooth
     for i = [1:length(sortedData)]        
-            sortedData(i).OD_subtr = sortedData(i).OD_subtr_smooth        
+            sortedData(i).OD_subtr_smooth = sortedData(i).OD_subtr        
     end
         
     % Smooth the newly created dataset
@@ -844,7 +844,7 @@ for nameidx=1:length(wellNames)
   %  usedColors=[]; % needed for legend in correct color
   %  dataidx=[]; % array with indices of sortedData that contain 'name'
     mylegendText=[];
-    
+   
     % initiate PLOTS
     if SHOW_FIG_FIT
         h=figure('Position',[100 100 900 700]);
@@ -857,15 +857,15 @@ for nameidx=1:length(wellNames)
         ylabel('log_10(OD)','Interpreter','None');
     end   
     
-    ylimMaxDescriptionPos=0; %get max OD (y axis) of repetitive measurements to adjust full axis range
-        
+    ylimMaxDescriptionPos=0; %get max OD (y axis) of repetitive measurements to adjust full axis range  
+    
     % obtain indices of data with wellname(i)
-    currentDataIdx = cell2mat(membersOfGroups(nameidx));
+    currentDataIdx = cell2mat(membersOfGroup(nameidx));
     % see if a manual fit exists here
     %sortedData(currentDataIdx).fitTimeManual
 
     for i = currentDataIdx
-
+        
         if ~isempty(sortedData(i).fitTimeManual)
         
             colorcounter=colorcounter+1;
@@ -891,7 +891,6 @@ for nameidx=1:length(wellNames)
                 if ~isempty(sortedData(i).muManual) 
                     
                     fitTimeext=[sortedData(i).fitTimeManual(1)-1:0.01:sortedData(i).fitTimeManual(2)+1];  %in [h]
-                    disp('hi');
                     ODcalc=sortedData(i).x0Manual*2.^(sortedData(i).muManual*fitTimeext);
                     %fitline=plot(fitTimeext,log(ODcalc)/log(2),'-','Color',currentColor);
                     fitline=plot(fitTimeext,ODcalc,'-','Color',currentColor,'LineWidth',2);
