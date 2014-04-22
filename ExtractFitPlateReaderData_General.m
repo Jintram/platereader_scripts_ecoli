@@ -20,32 +20,55 @@
 % - sortedData.mat: matlab file containing all info about the wells and
 %     growth rates
 % ************************************************
+%
+%
+% Some additional notes (MW):
+% - "Smoothing" and "moving average" are used as synonyms here.
 
-
-%% (1)
+%% (1) Setting directories and such
 % ************************************************
 % specify folder, date, etc
 % ************************************************
 myRootDir='U:\EXPERIMENTAL_DATA\platereader\';
-myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
 myDateDir='2014_04_20\';
-datafile='2014_04_20_results_regulation_mutants';
+myFullDir=[myRootDir myDateDir];
 
-% OD range to fit is set at comment "% Change OD range here".
+myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
+datafile='2014_04_20_results_regulation_mutants';
+myPlotsSaveDir=[myFullDir 'Plots\'];
+
+% Depends on data but needed for general functioning script
+load([myRootDir myScriptDir 'myColor.mat'],'myColor'); % load MW colors
+
+% *************************************************
+% Some general setting
+% *************************************************
+
+% Some additional wells to be ignored aside from those marked with 
+% realData=0.
+ignoreList = {'H2O','karlblank'};
+USEMARKER = 0; % Whether to use markers when plotting - only applies (3b)
+yLimMinLog = 10^-3; % minimum for log scale
+
+% Some not-to-be-changed config
+availableMarkerSpecifiers = {'+','o','*','.','x','s','d','^','v','>','<','p','h'};
 
 % ************************************************
 % import data. names: 'data' 'textdata'. create saveDirectory
 % ************************************************
-myFullDir=[myRootDir myDateDir];
+
 [data textdata]=xlsread([myFullDir, datafile, '.xls']);
 [~, DescriptionPlateCoordinates]=xlsread([myFullDir 'plateCoordinates.xlsx'],'C4:N11'); %what is tested on which position
 load([myRootDir myScriptDir 'PositionNames.mat']); % cell array with 'A1' 'B1' etc
-load([myRootDir myScriptDir 'myColor.mat'],'myColor'); % load MW colors
 %
 % nb: the timefield is now in IEEE format and can be converted into minutes
 % by DJK_getMinutesfromTimestamp(timeIeee). Timefield will be converted to
 % hours further below
 
+%% (1b) Loading data and setting up structures
+% DO NOT RUN if you have already processed data!
+
+% OD range to fit is set at comment "% Change OD range here".
 
 % Data structure of Excel sheet: (X=not important)
 % data:     X -- X -- Nan   -- Nan -- time1 -- OD1 -- time2 -- OD2 -- time3 -- OD3 -- time4 -- OD4
@@ -167,7 +190,6 @@ end
 
 %----------------------------------------------------------
 %create save directory
-myPlotsSaveDir=[myFullDir 'Plots\'];
 if exist(myPlotsSaveDir)~=7
   [status,msg,id] = mymkdir([myPlotsSaveDir]);
   if status == 0
@@ -387,7 +409,146 @@ clear dummy nameidx name muAccum muManualAccum
 clear xlimfit ylimfit colorcounter mylegendText g h fitTimeManualext ODcalcManual  ODcalc
 clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODminline
 
+%% (3b)
+% ************************************************ 
+% Plot all graphs in one plot 
+% TODO MW: and also in subplot figure
+% ************************************************
 
+HIDE_GRAPHS = 0;
+
+%create subSaveDirectory for these plots
+myJustPlotDir=[myPlotsSaveDir 'Summaryplots\'];
+if exist(myJustPlotDir)~=7
+  [status,msg,id] = mymkdir([myJustPlotDir]);
+  if status == 0
+    disp(['Warning: unable to mkdir ' myJustPlotDir ' : ' msg]);
+    return;
+  end
+end
+
+% Determine subplots necessary
+nrSubplots = ceil(sqrt(length(wellNames)));
+
+% Initiate plots
+% ===
+% normal scale plots
+h=figure(1);    
+clf
+title([' OD values over time'])
+hold on
+xlabel('time [h]')
+ylabel('OD')      
+if HIDE_GRAPHS
+    set(h,'Visible','off'); % TODO MW - doesn't work
+end         
+% logplots
+hlog=figure(2); 
+clf    
+set(gca, 'Yscale', 'log')
+title(['log OD values over time'])
+hold on
+xlabel('time [h]')
+ylabel('OD')        
+% hide plots if desired  
+if HIDE_GRAPHS
+    set(hlog,'Visible','off'); % TODO MW - doesn't work
+end   
+
+% -----------------------------------------------
+%loop over different groups in well (wellNames)
+% -----------------------------------------------
+colorcounter=0;
+mylegendText=[];
+myCurrentMarker = '';
+maxima = [];
+for nameidx=1:length(wellNames)    
+       
+    % administration
+    name=char(wellNames(nameidx));
+    colorcounter=colorcounter+1;
+    if USEMARKER 
+        myCurrentMarker = availableMarkerSpecifiers{nameidx}; % TODO MW: will crash if large number groups -> use mod()
+    end
+    
+    % Skip this group if in ignorelist
+    if ismember(name,ignoreList)
+        disp(['FYI: ' name ' group was ignored.']);
+        continue;
+    end
+    
+  %  usedColors=[]; % needed for legend in correct color
+  %  dataidx=[]; % array with indices of sortedData that contain 'name'
+             
+    % -----------------------------------------------
+    %  loop over members of each group
+    % -----------------------------------------------
+    myCurrentDataTime = []; myCurrentDataOD_substr = []; myCurrentColors = [];
+    countInGroup=0;
+    for i=cell2mat(membersOfGroup(nameidx))
+        
+        % Counter for legend (see below)
+        countInGroup = countInGroup+1;
+        
+        % Plot the current well
+        % Plot linear scale
+        figure(h);
+        lineh = plot(sortedData(i).time,sortedData(i).OD_subtr_smooth',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
+        % Plot log scale
+        figure(hlog); % also plot on logarithmic scale
+        linehlog = semilogy(sortedData(i).time,sortedData(i).OD_subtr_smooth',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
+
+        % Determine maxima
+        current_max = max(sortedData(i).OD_subtr_smooth);
+        maxima = [maxima current_max];
+        
+        %collect data for legend
+        if (countInGroup == 1)
+            if isempty(mylegendText)
+                mylegendText=['''name=' name '''' ];
+            else
+                mylegendText=[mylegendText, ', ''name=' name '''' ];
+            end        
+        else
+            set(get(get(lineh,'Annotation'),'LegendInformation'),...
+                        'IconDisplayStyle','off'); % Exclude line from legend
+            set(get(get(linehlog,'Annotation'),'LegendInformation'),...
+                'IconDisplayStyle','off'); % Exclude line from legend
+        end
+        
+    end
+    % end loop over all data and search for repetitions with same 'name'
+    % -----------------------------------------------
+      
+end
+% end loop over all names (different exp's)
+% -----------------------------------------------
+
+% Set legends
+figure(h)
+eval(['legend(', mylegendText, ',''Location'',''NorthEastOutside'')']);
+figure(hlog)
+eval(['legend(', mylegendText, ',''Location'',''NorthEastOutside'')']);
+yLimMaxLog = max(maxima); % hail to the queen!
+ylim([yLimMinLog yLimMaxLog])
+
+% save with (moving) averages on linear scale
+figFullName=[myJustPlotDir 'All_GrowthCurves'];
+saveas(h,[figFullName '.fig'], 'fig');
+saveas(h,[figFullName '.png'], 'png');
+% save with (moving) averages on log scale
+figFullName=[myJustPlotDir 'All_Log_GrowthCurves'];
+saveas(hlog,[figFullName '.fig'], 'fig');
+saveas(hlog,[figFullName '.png'], 'png');
+
+% close figures
+close(h); close(hlog);
+
+%{
+clear dummy nameidx name muAccum muManualAccum
+clear xlimfit ylimfit colorcounter mylegendText g h fitTimeManualext ODcalcManual  ODcalc
+clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODminline
+%}
 
 %% (4)
 % ************************************************
@@ -457,12 +618,9 @@ clear i idxODmaxOrLower idxODminOrHigher idxMin idxMax status msg id
 % Select manual fitranges
 % ************************************************
 
-% Some additional wells to be ignored aside from those marked with 
-% realData=0.
-NoManualRange = {'H2O','15A','15B','15C','16A','16B','16C','17A','17B','17C'};
 % These are important for plotting later
-NoManualRange(end+1)={'blank'};
-NoManualRange(end+1)={'x'};
+ignoreList(end+1)={'blank'};
+ignoreList(end+1)={'x'};
 
 % Set figure
 m=figure(1);
@@ -470,7 +628,7 @@ m=figure(1);
 for i=1:length(sortedData) 
         
         % unless not to be set manually
-        if ~ismember(sortedData(i).DescriptionPos,NoManualRange) & sortedData(i).realData
+        if ~ismember(sortedData(i).DescriptionPos,ignoreList) & sortedData(i).realData
             
             % Plot the current well
             clf;
@@ -831,7 +989,7 @@ for nameidx=1:length(wellNames)
     name=char(wellNames(nameidx));    
     
     % exclude well groups for which manual range is not set + above
-    if ismember(wellNames(nameidx),NoManualRange)
+    if ismember(wellNames(nameidx),ignoreList)
         disp(['Skipping group ' name]);
         continue
     end

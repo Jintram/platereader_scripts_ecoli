@@ -13,24 +13,27 @@
 % - nameidx: index of name in wellNames (convenient to retreieve idx of
 % specific well, use membersOfGroups for this).
 
+% -------------------------------------------------------------------------
+% CONFIG SETTINGS
+% -------------------------------------------------------------------------
 % Set the threshold value for which the first time this value is 
 % encountered should be determined
-myThreshold = 7*10^-3;
+myThreshold = 7*10^-2;
+USESMOOTH = 1;
 
-% -------------------------------------------------------------------------
 % specify folder, date, etc (also done in
 % ExtractFitPlateReaderData_General.m).
 
-myRootDir='U:\PROJECTS\Temperature_Mutants\platereader\';
+myRootDir='U:\EXPERIMENTAL_DATA\platereader\';
 myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
-myDateDir='2014_03_29\';
+myDateDir='2014_04_20\';
 
 myFullDir=[myRootDir myDateDir];
 % -------------------------------------------------------------------------
 
 % Some additional wells to be ignored aside from those marked with 
 % realData=0.
-toIgnore = {'H2O','15A','15B','15C','16A','16B','16C','17A','17B','17C'};
+toIgnore = {'karlblank','H2O','15A','15B','15C','16A','16B','16C','17A','17B','17C'};
 
 % For this script to work, the following objects should be present:
 if (exist('sortedData') ~= 1 || ~exist('membersOfGroups') ~= 1)
@@ -60,10 +63,23 @@ for nameidx = 1:length(wellNames)
     times_pass = [];
     
     for j = currentDataIdxs
-        % Find index where threshold is passed for this well
-        current_idx_pass = find(sortedData(j).OD_subtr>myThreshold,1);
+        
+        if USESMOOTH
+            % Find index where threshold is passed for this well (from
+            % smoothed line)
+            current_idx_pass = find(sortedData(j).OD_subtr_smooth>myThreshold,1);
+        else
+            % Find index where threshold is passed for this well
+            current_idx_pass = find(sortedData(j).OD_subtr>myThreshold,1);
+        end
+        
         % Determine corresponding time
-        current_time_pass = sortedData(j).time(current_idx_pass);
+        current_time_pass = sortedData(j).time(current_idx_pass);        
+        
+        if isempty(current_idx_pass)
+            current_idx_pass = -1;
+            current_time_pass = -1;
+        end        
         
         % Add these to lists
         idxs_pass = [idxs_pass current_idx_pass];
