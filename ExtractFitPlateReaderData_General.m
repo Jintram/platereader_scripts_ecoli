@@ -526,9 +526,9 @@ end
 
 % Set legends
 figure(h)
-eval(['legend(', mylegendText, ',''Location'',''NorthEastOutside'')']);
+eval(['legend(', mylegendText, ',''Location'',''NorthEastOutside'')']); % Best
 figure(hlog)
-eval(['legend(', mylegendText, ',''Location'',''NorthEastOutside'')']);
+eval(['legend(', mylegendText, ',''Location'',''NorthEastOutside'')']); % NorthEastOutside
 yLimMaxLog = max(maxima); % hail to the queen!
 ylim([yLimMinLog yLimMaxLog])
 

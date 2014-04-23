@@ -18,7 +18,7 @@
 % -------------------------------------------------------------------------
 % Set the threshold value for which the first time this value is 
 % encountered should be determined
-myThreshold = 7*10^-2;
+myThreshold = 12*10^-2;
 USESMOOTH = 1;
 
 % specify folder, date, etc (also done in
@@ -76,16 +76,23 @@ for nameidx = 1:length(wellNames)
         % Determine corresponding time
         current_time_pass = sortedData(j).time(current_idx_pass);        
         
-        if isempty(current_idx_pass)
-            current_idx_pass = -1;
-            current_time_pass = -1;
+        % Store if found
+        if ~isempty(current_idx_pass)            
+            % Add these to lists
+            idxs_pass = [idxs_pass current_idx_pass];
+            times_pass = [times_pass current_time_pass]; 
         end        
         
-        % Add these to lists
-        idxs_pass = [idxs_pass current_idx_pass];
-        times_pass = [times_pass current_time_pass]; 
+        
     end
 
+    % To flag groups where no treshold was passed in all duplicates, put
+    % value of -1 instead of []
+    if isempty(times_pass)
+        times_pass = -1;
+        idxs_pass = -1;
+    end
+    
     % store thresholds for current wells
     all_my_thresholds{end+1} = {name, times_pass, idxs_pass, nameidx};
     
@@ -107,14 +114,23 @@ thresholds_pass_times = cellfun(@(x) x(2), all_my_thresholds);
 % Select accompanying cell names
 names = cellfun(@(x) x(1), all_my_thresholds);
 
-% Determine averages and 
-average_thresholds_pass_times = mean(cell2mat(thresholds_pass_times')');
-std_thresholds_pass_times = std(cell2mat(thresholds_pass_times')');
+% Determine averages, std and number of duplicates for each group
+average_thresholds_pass_times = [];
+std_thresholds_pass_times = [];
+nr_duplicates = [];
+for i = [1:length(all_my_thresholds)]
+    average_thresholds_pass_times = ...
+        [average_thresholds_pass_times mean(cell2mat(thresholds_pass_times(i)))];
+    std_thresholds_pass_times = ...
+        [std_thresholds_pass_times std(cell2mat(thresholds_pass_times(i)))];
+    nr_duplicates = ...
+        [nr_duplicates length(cell2mat(thresholds_pass_times(i)))];
+end
 
 % Export to Excel sheet
 filename = [myFullDir 'thresholds_' num2str(myThreshold) '.xlsx'];
 %filename = ['d:\' 'thresholds_' num2str(myThreshold) '.xlsx'];
-myThresholdTable=cell([names', num2cell(average_thresholds_pass_times'),num2cell(std_thresholds_pass_times')]);
+myThresholdTable=cell([names', num2cell(average_thresholds_pass_times'),num2cell(std_thresholds_pass_times'),num2cell(nr_duplicates')]);
 %myThresholdTable=cell([wellNames,num2cell(average_thresholds_pass_times')])
 xlswrite(filename,myThresholdTable,'Thresholdvalues','B2');
 
