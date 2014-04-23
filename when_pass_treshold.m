@@ -18,7 +18,7 @@
 % -------------------------------------------------------------------------
 % Set the threshold value for which the first time this value is 
 % encountered should be determined
-myThreshold = 12*10^-2;
+myThreshold = 2*10^-2;
 USESMOOTH = 1;
 
 % specify folder, date, etc (also done in
