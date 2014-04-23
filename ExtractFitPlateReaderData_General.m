@@ -261,8 +261,9 @@ HIDE_GRAPHS=1; % TODO MW - doesn't work
 windowSize=21; % needs to be odd number! - windowsize for moving average
 
 % For determining plateau values of plots
-myPlateauValues = []
-PLATEAUSTART = .9; % fraction of data after which averaging is performed 
+myPlateauValues     = [];
+myPlateauValues_std = [];
+PLATEAUSTART = .95; % fraction of data after which averaging is performed 
                   % to estimate plateau value.
 
 %create subSaveDirectory for these plots
@@ -374,15 +375,20 @@ for nameidx=1:length(wellNames)
     
     % First average different moving averages, if there are more lines
     % available.
-    if size(myCurrentDataOD_substr_movavg,1) > 1
+    if size(myCurrentDataOD_substr_movavg,2) > 1
         myMeanCurrentDataOD_substr_movavg = mean(myCurrentDataOD_substr_movavg);
+    else
+        % simply take the 1 line
+        myMeanCurrentDataOD_substr_movavg = myCurrentDataOD_substr_movavg;
     end
     
     % Determine plateauvalue    
     range = [ceil(size(myMeanCurrentDataOD_substr_movavg,1)*PLATEAUSTART) size(myMeanCurrentDataOD_substr_movavg,1)];
-    currentPlateauValues = mean(myMeanCurrentDataOD_substr_movavg(range));
+    currentPlateauValues     = mean(myMeanCurrentDataOD_substr_movavg(range));
+    currentPlateauValues_std = std(myMeanCurrentDataOD_substr_movavg(range));
 
-    myPlateauValues = [myPlateauValues currentPlateauValues];
+    myPlateauValues     = [myPlateauValues      currentPlateauValues];
+    myPlateauValues_std = [myPlateauValues_std  currentPlateauValues_std];
       
 end
 % and loop over all names (different exp's)
@@ -390,9 +396,13 @@ end
 
 % Save estimates of plateau values
 h = figure();
-barh(myPlateauValues);
-set(gca, 'YTick', [1:length(wellNames)]);
-set(gca, 'YTickLabel', wellNames);
+%barh(myPlateauValues);
+barwitherr(myPlateauValues_std,myPlateauValues,'FaceColor',[0.8,0.8,0.8]);
+xlabel('Strain/medium');
+ylabel('OD value');
+title(['Plateau values determined from ' num2str(PLATEAUSTART) '-1.00 interval'])
+set(gca, 'XTick', [1:length(wellNames)]);
+set(gca, 'XTickLabel', wellNames);
 
 % save with (moving) averages on linear scale
 figFullName=[myJustPlotDir 'plateauvalues' ];
@@ -402,7 +412,7 @@ saveas(h,[figFullName '.png'], 'png');
 % Output plateau values to Excel file
 filename = [myJustPlotDir 'plateauvalues.xlsx'];
 %myPlateauTable=table(wellNames,myPlateauValues'; 
-myPlateauTable=cell([wellNames,num2cell(myPlateauValues')])
+myPlateauTable=cell([wellNames,num2cell(myPlateauValues'),num2cell(myPlateauValues_std')])
 xlswrite(filename,myPlateauTable,'Plateauvalues','B2');
 
 clear dummy nameidx name muAccum muManualAccum
