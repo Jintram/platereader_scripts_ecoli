@@ -29,13 +29,15 @@
 % ************************************************
 % specify folder, date, etc
 % ************************************************
-myRootDir='U:\EXPERIMENTAL_DATA\platereader\';
-myDateDir='2014_04_20\';
+myRootDir='U:\EXPERIMENTAL_DATA\platereader\'; % should also contain folder with scripts
+myDateDir='2014-04-29\';
 myFullDir=[myRootDir myDateDir];
 
-myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
-datafile='2014_04_20_results_regulation_mutants';
+datafile='2014-04-29_comparing_to_spectrophotometer_dilution_series';
 myPlotsSaveDir=[myFullDir 'Plots\'];
+
+% Location of scripts
+myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
 
 % Depends on data but needed for general functioning script
 load([myRootDir myScriptDir 'myColor.mat'],'myColor'); % load MW colors
@@ -263,7 +265,7 @@ windowSize=21; % needs to be odd number! - windowsize for moving average
 % For determining plateau values of plots
 myPlateauValues     = [];
 myPlateauValues_std = [];
-PLATEAUSTART = .95; % fraction of data after which averaging is performed 
+PLATEAUSTART = 0.0; % fraction of data after which averaging is performed 
                   % to estimate plateau value.
 
 %create subSaveDirectory for these plots
@@ -384,6 +386,7 @@ for nameidx=1:length(wellNames)
     
     % Determine plateauvalue    
     range = [ceil(size(myMeanCurrentDataOD_substr_movavg,1)*PLATEAUSTART) size(myMeanCurrentDataOD_substr_movavg,1)];
+    if range(1) == 0, range(1)=1; end % this might be done prettier.. MW TODO
     currentPlateauValues     = mean(myMeanCurrentDataOD_substr_movavg(range));
     currentPlateauValues_std = std(myMeanCurrentDataOD_substr_movavg(range));
 
