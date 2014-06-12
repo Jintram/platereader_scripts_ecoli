@@ -30,10 +30,10 @@
 % specify folder, date, etc
 % ************************************************
 myRootDir='U:\EXPERIMENTAL_DATA\platereader\'; % should also contain folder with scripts
-myDateDir='2014-04-29\';
+myDateDir='2014_06_09\';
 myFullDir=[myRootDir myDateDir];
 
-datafile='2014-04-29_comparing_to_spectrophotometer_dilution_series';
+datafile='2014_06_09_directM9_failH2Orefill';
 myPlotsSaveDir=[myFullDir 'Plots\'];
 
 % Location of scripts
@@ -265,7 +265,7 @@ windowSize=21; % needs to be odd number! - windowsize for moving average
 % For determining plateau values of plots
 myPlateauValues     = [];
 myPlateauValues_std = [];
-PLATEAUSTART = 0.0; % fraction of data after which averaging is performed 
+PLATEAUSTART = 0.95; % fraction of data after which averaging is performed 
                   % to estimate plateau value.
 
 %create subSaveDirectory for these plots
@@ -504,15 +504,16 @@ for nameidx=1:length(wellNames)
         countInGroup = countInGroup+1;
         
         % Plot the current well
+        rangeMA=sortedData(i).rangeMovingAverage; % range moving average
         % Plot linear scale
         figure(h);
-        lineh = plot(sortedData(i).time,sortedData(i).OD_subtr_smooth',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
+        lineh = plot(sortedData(i).time(rangeMA),sortedData(i).movingAverage',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
         % Plot log scale
         figure(hlog); % also plot on logarithmic scale
-        linehlog = semilogy(sortedData(i).time,sortedData(i).OD_subtr_smooth',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
+        linehlog = semilogy(sortedData(i).time(rangeMA),sortedData(i).movingAverage',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
 
         % Determine maxima
-        current_max = max(sortedData(i).OD_subtr_smooth);
+        current_max = max(sortedData(i).movingAverage);
         maxima = [maxima current_max];
         
         %collect data for legend
@@ -571,6 +572,7 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % Change OD range here (standard = [0.03, 0.08]):
 % XXXXXXXXXXXXXXXX
 ODmin=4*10^-3; ODmax=13*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
+ODmin=0.03; ODmax=0.07;
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.

@@ -14,7 +14,7 @@
 % specific well, use membersOfGroups for this).
 
 % -------------------------------------------------------------------------
-% CONFIG SETTINGS
+%% CONFIG SETTINGS
 % -------------------------------------------------------------------------
 % Set the threshold value for which the first time this value is 
 % encountered should be determined
@@ -26,7 +26,7 @@ USESMOOTH = 1;
 
 myRootDir='U:\EXPERIMENTAL_DATA\platereader\';
 myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
-myDateDir='2014_04_20\';
+myDateDir='2014_06_09\';
 
 myFullDir=[myRootDir myDateDir];
 % -------------------------------------------------------------------------
@@ -41,6 +41,8 @@ if (exist('sortedData') ~= 1 || ~exist('membersOfGroups') ~= 1)
     error('Need objects sortedData and membersOfGroups for this function to work. Run ExtractFitPlateReaderData_General.m first or load data.');
     
 end
+
+%% Find treshold times
 
 all_my_thresholds = {};
 
@@ -126,6 +128,8 @@ for i = [1:length(all_my_thresholds)]
     nr_duplicates = ...
         [nr_duplicates length(cell2mat(thresholds_pass_times(i)))];
 end
+
+%% Export data
 
 % Export to Excel sheet
 filename = [myFullDir 'thresholds_' num2str(myThreshold) '.xlsx'];
