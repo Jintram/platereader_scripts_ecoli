@@ -18,27 +18,33 @@
 % -------------------------------------------------------------------------
 % Set the threshold value for which the first time this value is 
 % encountered should be determined
-myThreshold = 2*10^-2;
+myThreshold = 0.02
 USESMOOTH = 1;
 
-% specify folder, date, etc (also done in
-% ExtractFitPlateReaderData_General.m).
-
-myRootDir='U:\EXPERIMENTAL_DATA\platereader\';
-myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
-myDateDir='2014_06_09\';
 
 myFullDir=[myRootDir myDateDir];
-% -------------------------------------------------------------------------
 
 % Some additional wells to be ignored aside from those marked with 
 % realData=0.
 toIgnore = {'karlblank','H2O','15A','15B','15C','16A','16B','16C','17A','17B','17C'};
 
+% -------------------------------------------------------------------------
+% Checks whether other script has run..
+if ~mainscriptsettingran==1
+    disp('ERROR: Run first section ExtractFitPlateReaderData_General.m first!'); % error('')?
+end
+% Already done in ExtractFitPlateReaderData_General.m; and this needs to be
+% run anyways.
+%{
+myRootDir='U:\EXPERIMENTAL_DATA\platereader\';
+myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
+myDateDir='2014_06_14\';
+%}
+
 % For this script to work, the following objects should be present:
-if (exist('sortedData') ~= 1 || ~exist('membersOfGroups') ~= 1)
+if (exist('sortedData') ~= 1 || exist('membersOfGroups') ~= 1 || exist('sortedData.OD_subtr_smooth') ~= 1)
     
-    error('Need objects sortedData and membersOfGroups for this function to work. Run ExtractFitPlateReaderData_General.m first or load data.');
+    disp('ERROR: Need objects sortedData and membersOfGroups for this function to work. Run ExtractFitPlateReaderData_General.m first or load data.');
     
 end
 
@@ -104,7 +110,7 @@ end
 disp('Done. See all_my_thresholds for data.');
 
 % Store data
-filename = ['thresholds_' num2str(myThreshold)];
+filename = [currentdate 'thresholds_' num2str(myThreshold)];
 save([myFullDir filename '.mat'],'all_my_thresholds');
 
 disp(['Writing to ' filename ' (.mat and .xls).'])
@@ -132,7 +138,7 @@ end
 %% Export data
 
 % Export to Excel sheet
-filename = [myFullDir 'thresholds_' num2str(myThreshold) '.xlsx'];
+filename = [myFullDir currentdate 'thresholds_' num2str(myThreshold) '.xlsx'];
 %filename = ['d:\' 'thresholds_' num2str(myThreshold) '.xlsx'];
 myThresholdTable=cell([names', num2cell(average_thresholds_pass_times'),num2cell(std_thresholds_pass_times'),num2cell(nr_duplicates')]);
 %myThresholdTable=cell([wellNames,num2cell(average_thresholds_pass_times')])

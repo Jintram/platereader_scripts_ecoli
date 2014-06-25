@@ -7,7 +7,7 @@
 % background].
 
 %cutoff=664
-cutoff=555
+cutoff=664
 
 for i = 1:length(sortedData)
     

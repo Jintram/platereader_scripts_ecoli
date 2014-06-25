@@ -30,14 +30,17 @@
 % specify folder, date, etc
 % ************************************************
 myRootDir='U:\EXPERIMENTAL_DATA\platereader\'; % should also contain folder with scripts
-myDateDir='2014_06_09\';
-myFullDir=[myRootDir myDateDir];
+myDateDir='2014_06_16\';
+datafile='2014_06_16_directM9consecutiveM9';
 
-datafile='2014_06_09_directM9_failH2Orefill';
+myFullDir=[myRootDir myDateDir];
 myPlotsSaveDir=[myFullDir 'Plots\'];
 
 % Location of scripts
 myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
+
+% Get current date to label output files
+currentdate=date();
 
 % Depends on data but needed for general functioning script
 load([myRootDir myScriptDir 'myColor.mat'],'myColor'); % load MW colors
@@ -66,6 +69,8 @@ load([myRootDir myScriptDir 'PositionNames.mat']); % cell array with 'A1' 'B1' e
 % nb: the timefield is now in IEEE format and can be converted into minutes
 % by DJK_getMinutesfromTimestamp(timeIeee). Timefield will be converted to
 % hours further below
+
+mainscriptsettingran=1; % Flag for other scripts
 
 %% (1b) Loading data and setting up structures
 % DO NOT RUN if you have already processed data!
@@ -360,11 +365,11 @@ for nameidx=1:length(wellNames)
     % -----------------------------------------------
         
     % save with (moving) averages on linear scale
-    figFullName=[myJustPlotDir 'GrowthCurves_' name];
+    figFullName=[myJustPlotDir currentdate 'GrowthCurves_' name];
     saveas(h,[figFullName '.fig'], 'fig');
     saveas(h,[figFullName '.png'], 'png');
     % save with (moving) averages on log scale
-    figFullName=[myJustPlotDir 'log_GrowthCurves_' name];
+    figFullName=[myJustPlotDir currentdate 'log_GrowthCurves_' name];
     saveas(hlog,[figFullName '.fig'], 'fig');
     saveas(hlog,[figFullName '.png'], 'png');
 
@@ -408,12 +413,12 @@ set(gca, 'XTick', [1:length(wellNames)]);
 set(gca, 'XTickLabel', wellNames);
 
 % save with (moving) averages on linear scale
-figFullName=[myJustPlotDir 'plateauvalues' ];
+figFullName=[myJustPlotDir currentdate 'plateauvalues' ];
 saveas(h,[figFullName '.fig'], 'fig');
 saveas(h,[figFullName '.png'], 'png');
 
 % Output plateau values to Excel file
-filename = [myJustPlotDir 'plateauvalues.xlsx'];
+filename = [myJustPlotDir currentdate 'plateauvalues.xlsx'];
 %myPlateauTable=table(wellNames,myPlateauValues'; 
 myPlateauTable=cell([wellNames,num2cell(myPlateauValues'),num2cell(myPlateauValues_std')])
 xlswrite(filename,myPlateauTable,'Plateauvalues','B2');
@@ -547,11 +552,11 @@ yLimMaxLog = max(maxima); % hail to the queen!
 ylim([yLimMinLog yLimMaxLog])
 
 % save with (moving) averages on linear scale
-figFullName=[myJustPlotDir 'All_GrowthCurves'];
+figFullName=[myJustPlotDir currentdate 'All_GrowthCurves'];
 saveas(h,[figFullName '.fig'], 'fig');
 saveas(h,[figFullName '.png'], 'png');
 % save with (moving) averages on log scale
-figFullName=[myJustPlotDir 'All_Log_GrowthCurves'];
+figFullName=[myJustPlotDir currentdate 'All_Log_GrowthCurves'];
 saveas(hlog,[figFullName '.fig'], 'fig');
 saveas(hlog,[figFullName '.png'], 'png');
 
@@ -571,8 +576,8 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % XXXXXXXXXXXXXXXX
 % Change OD range here (standard = [0.03, 0.08]):
 % XXXXXXXXXXXXXXXX
-ODmin=4*10^-3; ODmax=13*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
-ODmin=0.03; ODmax=0.07;
+%ODmin=3*10^-3; ODmax=7.5*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
+ODmin=0.03; ODmax=0.075;
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.
@@ -697,7 +702,7 @@ end
 % save this data 
 thetime=clock();
 mytime=[num2str(thetime(1)) '-' num2str(thetime(2)) '-' num2str(thetime(3)) '_' num2str(thetime(4)) '-' num2str(thetime(5))];
-save([myFullDir 'fitTimeManual_ranges' mytime '.mat'],'myfitTimeManual','myfitRangeManual');
+save([myFullDir currentdate 'fitTimeManual_ranges' mytime '.mat'],'myfitTimeManual','myfitRangeManual');
 
 %% (6)
 % ************************************************
@@ -935,13 +940,13 @@ for nameidx=1:length(wellNames)    %blubb
     %create legend and save image
     if SHOW_FIG_FIT
         eval(['legend(', mylegendText, ',''Location'',''NW'')']);
-        figFullName=[myPlotsSaveDirODsub 'GrowthCurves_' name '_automaticFitTime'];
+        figFullName=[myPlotsSaveDirODsub currentdate 'GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
         saveas(h,[figFullName '.png'], 'png');
         %save also image with full axis range
         xlim([sortedData(1).time(1) sortedData(1).time(end)]);
         ylim([0 ylimMaxDescriptionPos]);
-        figFullName=[myPlotsSaveDirODsub 'Full_GrowthCurves_' name '_automaticFitTime'];
+        figFullName=[myPlotsSaveDirODsub currentdate 'Full_GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
         saveas(h,[figFullName '.png'], 'png');
         close(h)
@@ -970,7 +975,7 @@ fclose(fid);
 
 % Output above table also to Excel file
 if USESMOOTH smoothyesnow='SMOOTHED'; else smoothyesnow=''; end
-filename = [myFullDir 'FittedGrowthRateData_' smoothyesnow 'ODrange' num2str(ODmin) '_' num2str(ODmax) '.xlsx'];
+filename = [myFullDir currentdate 'FittedGrowthRateData_' smoothyesnow 'ODrange' num2str(ODmin) '_' num2str(ODmax) '.xlsx'];
 %disp(['Saving ' filename]);
 %myPlateauTable=table(wellNames,myPlateauValues'; 
 % Sheet w. averages and stds mu
@@ -986,7 +991,7 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % Save data to matlab file for later use
 
 %save 'sortedData' and growthrate data  'muAvStdev'
-save([myFullDir 'CompleteAnalyzedData.mat'],'sortedData','muAvStdev','membersOfGroup','wellNames');
+save([myFullDir currentdate 'CompleteAnalyzedData.mat'],'sortedData','muAvStdev','membersOfGroup','wellNames');
 
 %% (7b)----------------------------
 % -------------------------
@@ -1128,14 +1133,14 @@ for nameidx=1:length(wellNames)
         end
                
         eval(['legend(', mylegendText, ',''Location'',''Best'')']);
-        figFullName=[myPlotsSaveDirLogODsub 'GrowthCurves_' name '_automaticFitTime'];
+        figFullName=[myPlotsSaveDirLogODsub currentdate 'GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
         saveas(h,[figFullName '.png'], 'png');
         %save also image with full axis range
         xlim([sortedData(1).time(1) sortedData(1).time(end)]);
         %ylim([log(0.01)/log(2) log(ylimMaxDescriptionPos)/log(2)]);
         ylim([0 ylimMaxDescriptionPos]);
-        figFullName=[myPlotsSaveDirLogODsub 'Full_GrowthCurves_' name '_automaticFitTime'];
+        figFullName=[myPlotsSaveDirLogODsub currentdate 'Full_GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
         saveas(h,[figFullName '.png'], 'png');
         close(h)
@@ -1288,14 +1293,14 @@ for nameidx=1:length(wellNames)    %blubb
         end
                
         eval(['legend(', mylegendText, ',''Location'',''Best'')']);
-        figFullName=[myPlotsSaveDirLogODsub 'GrowthCurves_' name '_automaticFitTime'];
+        figFullName=[myPlotsSaveDirLogODsub currentdate 'GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
         saveas(h,[figFullName '.png'], 'png');
         %save also image with full axis range
         xlim([sortedData(1).time(1) sortedData(1).time(end)]);
         %ylim([log(0.01)/log(2) log(ylimMaxDescriptionPos)/log(2)]);
         ylim([0 ylimMaxDescriptionPos]);
-        figFullName=[myPlotsSaveDirLogODsub 'Full_GrowthCurves_' name '_automaticFitTime'];
+        figFullName=[myPlotsSaveDirLogODsub currentdate 'Full_GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
         saveas(h,[figFullName '.png'], 'png');
         close(h)
