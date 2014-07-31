@@ -30,8 +30,8 @@
 % specify folder, date, etc
 % ************************************************
 myRootDir='U:\EXPERIMENTAL_DATA\platereader\'; % should also contain folder with scripts
-myDateDir='2014_06_16\';
-datafile='2014_06_16_directM9consecutiveM9';
+myDateDir='old_victor_2014_07_10\';
+datafile='2014_10_07_icd_part2_oldvictor';
 
 myFullDir=[myRootDir myDateDir];
 myPlotsSaveDir=[myFullDir 'Plots\'];
@@ -569,15 +569,15 @@ clear xlimfit ylimfit colorcounter mylegendText g h fitTimeManualext ODcalcManua
 clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODminline
 %}
 
-%% (4)
+%% (4) choose fitTime according to OD thresholds 
 % ************************************************
-%choose fitTime according to OD thresholds 
+% choose fitTime according to OD thresholds 
 % ************************************************
 % XXXXXXXXXXXXXXXX
 % Change OD range here (standard = [0.03, 0.08]):
 % XXXXXXXXXXXXXXXX
 %ODmin=3*10^-3; ODmax=7.5*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
-ODmin=0.03; ODmax=0.075;
+ODmin=0.01; ODmax=0.06;
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.
@@ -633,7 +633,7 @@ for i=1:length(sortedData)
 end
 clear i idxODmaxOrLower idxODminOrHigher idxMin idxMax status msg id
 
-%% (5)
+%% (5) Select manual fitranges
 % ************************************************
 % Select manual fitranges
 % ************************************************
@@ -993,7 +993,7 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 %save 'sortedData' and growthrate data  'muAvStdev'
 save([myFullDir currentdate 'CompleteAnalyzedData.mat'],'sortedData','muAvStdev','membersOfGroup','wellNames');
 
-%% (7b)----------------------------
+%% (7b) - ONLY IF MANUALLY FITTED!
 % -------------------------
 % Plot half-logarithmic plots for manual fit ranges
 % -------------------------
