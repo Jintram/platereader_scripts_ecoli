@@ -18,7 +18,7 @@
 % -------------------------------------------------------------------------
 % Set the threshold value for which the first time this value is 
 % encountered should be determined
-myThreshold = 0.02
+myThreshold = 0.01
 USESMOOTH = 1;
 
 
@@ -42,9 +42,9 @@ myDateDir='2014_06_14\';
 %}
 
 % For this script to work, the following objects should be present:
-if (exist('sortedData') ~= 1 || exist('membersOfGroups') ~= 1 || exist('sortedData.OD_subtr_smooth') ~= 1)
+if (exist('sortedData') ~= 1 || exist('membersOfGroup') ~= 1) % || exist('sortedData.OD_subtr_smooth') ~= 1)
     
-    disp('ERROR: Need objects sortedData and membersOfGroups for this function to work. Run ExtractFitPlateReaderData_General.m first or load data.');
+    disp('ERROR: Need objects sortedData, membersOfGroups and sortedData.OD_subtr_smooth for this function to work. Run ExtractFitPlateReaderData_General.m first or load data.');
     
 end
 
@@ -146,7 +146,7 @@ xlswrite(filename,myThresholdTable,'Thresholdvalues','B2');
 
 % -------------------------------------------------------------------------
 
-%{
+
 % Plot data
 h = figure();
 barh(average_thresholds_pass_times);
@@ -157,7 +157,7 @@ set(gca, 'YTickLabel', wellNames);
 figFullName=[myJustPlotDir 'plateauvalues' ];
 saveas(h,[figFullName '.fig'], 'fig');
 saveas(h,[figFullName '.png'], 'png');
-%}
+
 
 
 

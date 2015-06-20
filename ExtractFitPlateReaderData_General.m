@@ -24,14 +24,21 @@
 %
 % Some additional notes (MW):
 % - "Smoothing" and "moving average" are used as synonyms here.
+%
+%
+%
+% Data structure of Excel sheet: (X=not important)
+% data:     X -- X -- Nan   -- Nan -- time1 -- OD1 -- time2 -- OD2 -- time3 -- OD3 -- time4 -- OD4
+% textdata: X -- X -- A01   --  X --    X --  xxxx
+%                    (well nr)
 
 %% (1) Setting directories and such
 % ************************************************
 % specify folder, date, etc
 % ************************************************
-myRootDir='U:\EXPERIMENTAL_DATA\platereader\'; % should also contain folder with scripts
-myDateDir='old_victor_2014_07_10\';
-datafile='2014_10_07_icd_part2_oldvictor';
+myRootDir='U:\ZZ_EXPERIMENTAL_DATA\Platereader\'; % should also contain folder with scripts
+myDateDir='2014_11_14\';
+datafile='2014_11_14_TYlabeled.xls';
 
 myFullDir=[myRootDir myDateDir];
 myPlotsSaveDir=[myFullDir 'Plots\'];
@@ -62,7 +69,40 @@ availableMarkerSpecifiers = {'+','o','*','.','x','s','d','^','v','>','<','p','h'
 % import data. names: 'data' 'textdata'. create saveDirectory
 % ************************************************
 
-[data textdata]=xlsread([myFullDir, datafile, '.xls']);
+% Load the data itself
+%[data textdata]=xlsread([myFullDir, datafile]);
+% More extended version to allow for long measurement files 
+% (These are spread over multiple sheets by the platereader software. A
+% data sheet can be recognized by the word "List" in the name.)
+[myinfo, sheets]=xlsfinfo([myFullDir, datafile]);
+data=[]; textdata=[];
+sheet_idx=0;
+for name=sheets
+    sheet_idx=sheet_idx+1;
+    if ~isempty(strfind(name{1},'List'))
+        disp(['Loading sheet ' name{1}])
+        [tempData tempTextdata]=xlsread([myFullDir, datafile],sheet_idx);
+        
+        % if header line was imported into 'tempTextdata', delete this line
+        if size(tempTextdata,1)==size(tempData,1)+1
+            tempTextdata=tempTextdata(2:end,:);
+            disp('length was corrected')
+        elseif size(tempTextdata,1)==size(tempData,1)
+            disp('length already correct')
+        else
+            disp('''data'' and ''textdata'' length do not fit')
+        end
+
+        data =      [data;      tempData];
+        textdata =  [textdata;  tempTextdata];        
+        
+        %size(tempData)
+        %size(tempTextdata)
+        %size(data)
+        %size(textdata)
+    end
+end
+
 [~, DescriptionPlateCoordinates]=xlsread([myFullDir 'plateCoordinates.xlsx'],'C4:N11'); %what is tested on which position
 load([myRootDir myScriptDir 'PositionNames.mat']); % cell array with 'A1' 'B1' etc
 %
@@ -76,21 +116,6 @@ mainscriptsettingran=1; % Flag for other scripts
 % DO NOT RUN if you have already processed data!
 
 % OD range to fit is set at comment "% Change OD range here".
-
-% Data structure of Excel sheet: (X=not important)
-% data:     X -- X -- Nan   -- Nan -- time1 -- OD1 -- time2 -- OD2 -- time3 -- OD3 -- time4 -- OD4
-% textdata: X -- X -- A01   --  X --    X --  xxxx
-%                    (well nr)
-
-% if header line was imported into 'textdata', delete this line
-if size(textdata,1)==size(data,1)+1
-    textdata=textdata(2:end,:);
-    disp('length was corrected')
-elseif size(textdata,1)==size(data,1)
-    disp('length already correct')
-else
-    disp('''data'' and ''textdata'' length do not fit')
-end
         
 % ************************************************
 % sort data by well position
@@ -134,10 +159,14 @@ for i=1:length(wellCoordinates)
     sortedData(i).fitTimeManual=[];
     sortedData(i).fitRange=[];
     sortedData(i).fitRangeManual=[];    
+    
     [idx_row,idx_col]=find(strcmp(PositionNames,wellCoordinates(i))==1);
+    
     sortedData(i).DescriptionPos=char(DescriptionPlateCoordinates(idx_row,idx_col));
-    realData=(strcmp(sortedData(i).DescriptionPos,'blank')==0 & strcmp(sortedData(i).DescriptionPos,'x')==0);
+    
+    realData=(strcmp(sortedData(i).DescriptionPos,'blank')==0 & strcmp(sortedData(i).DescriptionPos,'x')==0);    
     sortedData(i).realData=realData;
+    
     sortedData(i).muManual=[];
     sortedData(i).x0Manual=[];
     sortedData(i).mu=[];
@@ -146,18 +175,25 @@ for i=1:length(wellCoordinates)
     sortedData(i).rangeMovingAverage=[];
 end
 
-% sort data
+% sort data (now stored in data)
 for i=1:length(sortedData)
     idx=find(strcmp(textdata(:,3),sortedData(i).wellCoordinate)==1);
     clear dummy
+    
+    % move data from "raw" into dummy variable
     dummy(:,1)=[data(idx,5); data(idx,7); data(idx,9); data(idx,11)]; %time
     dummy(:,2)=[data(idx,6); data(idx,8); data(idx,10); data(idx,12)]; %OD
+    
+    % Process dummy var   
     % bring into right order (strange original excel format)
     dummy=sortrows(dummy,1);
     % convert time to hours
     dummy(:,1)=DJK_getMinutesFromTimestamp(dummy(:,1))/60;    
+    
+    % Put dummy var into sortedData structure
     sortedData(i).time=dummy(:,1);
     sortedData(i).OD=dummy(:,2);
+    
     % delete NaN values in 'time' and 'OD' (can happen if experiment is
     % aborted)
     idxtime=~isnan(sortedData(i).time);
@@ -214,6 +250,8 @@ clear i dummy realData idx idx_col idx_row data textdata status msg id idxtime i
 % x = empty tube  %for the moment, leave empty values just be
 %[x_row,x_col]=find(strcmp(DescriptionPlateCoordinates,'x')==1);
 
+close all;
+
 % 'blank'= medium without bacteria -> subtract from all other entries
 % all blank data is averaged (over all positions, but individually for each
 % time point)
@@ -221,7 +259,7 @@ SHOW_FIG_BLANK=1;
 if SHOW_FIG_BLANK
     figure
     clf
-    title('blanks')
+    title('time trace')
     hold on
     xlabel('time [h]')
     ylabel('OD (600)')
@@ -244,18 +282,19 @@ end
 avBlankPerTime=avBlankPerTime/numBlanks;
 if SHOW_FIG_BLANK
         % plot averages per timepoint
-        plot(sortedData(1).time,avBlankPerTime,'xr')
+        plot(sortedData(1).time,avBlankPerTime,'r','LineWidth',1)
         % plot averages per blank
         figure
         errorbar(avPerBlank,stdPerBlank) % MW
-        axis([-.5 numBlanks+.5 0 max(avPerBlank)*1.1])
+        axis([.5 numBlanks+.5 0 max(avPerBlank)*1.1])
+        title('averages per blank'); xlabel('blank #'); ylabel('OD (600)')
 end
 totalAvBlank=mean(avBlankPerTime); % maybe use complete average instead of av per time point. Todo
 
 %add fields with blank subtracted to 'sortedData' (only useful for fields with actual
 %bacteria in it, but never bothers)
 for i=1:length(sortedData)
-    sortedData(i).OD_subtr=sortedData(i).OD-avBlankPerTime;
+    sortedData(i).OD_subtr = sortedData(i).OD-avBlankPerTime;
 end
 clear SHOW_FIG_BLANK blank_row blank_col numBlanks i idx wellName
 
@@ -418,7 +457,7 @@ saveas(h,[figFullName '.fig'], 'fig');
 saveas(h,[figFullName '.png'], 'png');
 
 % Output plateau values to Excel file
-filename = [myJustPlotDir currentdate 'plateauvalues.xlsx'];
+filename = [myFullDir currentdate 'plateauvalues.xlsx'];
 %myPlateauTable=table(wellNames,myPlateauValues'; 
 myPlateauTable=cell([wellNames,num2cell(myPlateauValues'),num2cell(myPlateauValues_std')])
 xlswrite(filename,myPlateauTable,'Plateauvalues','B2');
@@ -561,7 +600,7 @@ saveas(hlog,[figFullName '.fig'], 'fig');
 saveas(hlog,[figFullName '.png'], 'png');
 
 % close figures
-close(h); close(hlog);
+%close(h); close(hlog);
 
 %{
 clear dummy nameidx name muAccum muManualAccum
@@ -685,7 +724,7 @@ myfitTimeManual = [];
 myfitRangeManual = {};
 for i = 1:length(sortedData)
     % get current value fitTimeManual
-    currentmyfitTimeManual = sortedData(i).fitTimeManual;
+    currentmyfitTimeManual = sortedData(i).fitTimeManual
     % make zero to signal it doesnt exist
     if isempty(currentmyfitTimeManual) currentmyfitTimeManual = [0, 0]; end
     
@@ -693,9 +732,9 @@ for i = 1:length(sortedData)
     currentmyfitRangeManual = sortedData(i).fitRangeManual;    
     % make zero to signal it doesnt exist
     if isempty(currentmyfitRangeManual) currentmyfitRangeManual = 0; end
-    
+       
     % Add to array
-    myfitTimeManual = [myfitTimeManual; currentmyfitTimeManual];
+    myfitTimeManual = [myfitTimeManual; currentmyfitTimeManual(1:2)];
     myfitRangeManual{end+1} = currentmyfitRangeManual;
 end
 
@@ -1094,7 +1133,11 @@ for nameidx=1:length(wellNames)
                     end
                     xlim([xlimfit(1) xlimfit(2)+1]);  %blubb
                     %ylim([log(ODcalc(1))/log(2)-1    log(ODcalc(end))/log(2)+1]);
-                    ylim([ylimfit(1) ylimfit(2)*2]);
+                    ylim1 = ylimfit(1);
+                    ylim2 = ylimfit(2)*2;
+                    if ylim2>ylim1
+                        ylim([ylim1 ylim2]);
+                    end
 
                    % dataidx=[dataidx,i];
                    % usedColors=[usedColors;currentColor];
@@ -1259,7 +1302,11 @@ for nameidx=1:length(wellNames)    %blubb
                 end
                 xlim([xlimfit(1) xlimfit(2)+1]);  %blubb
                 %ylim([log(ODcalc(1))/log(2)-1    log(ODcalc(end))/log(2)+1]);
-                ylim([ylimfit(1) ylimfit(2)*2]);
+                ylim1 = ylimfit(1);
+                ylim2 = ylimfit(2)*2;
+                if ylim2>ylim1
+                    ylim([ylim1 ylim2]);
+                end
                 
                 %collect data for legend
                 if isempty(mylegendText)
@@ -1327,6 +1374,7 @@ clear fitline figFullName ans currentColor fid i str ODmaxline ODminline
 % i.e. set sortedData(i).realData to =0 or =1
 % to determine the idx of the data, run (7) and consult the legend
 % ************************************************
+%{
 disp('If data should not be used, sortedData(i).realData is set to =0,')
 disp('If data should be used, it is set to =1. Blank and not used (''x'')')
 disp('data can never be set to =1. Only enter numbers where you wish')
@@ -1347,3 +1395,4 @@ for i=1:length(UseMe)
 end
 
 clear i DontUseMe UseMe
+%}
