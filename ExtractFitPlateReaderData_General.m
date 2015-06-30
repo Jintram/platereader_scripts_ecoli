@@ -36,25 +36,35 @@
 % ************************************************
 % specify folder, date, etc
 % ************************************************
-myRootDir='U:\ZZ_EXPERIMENTAL_DATA\Platereader\'; % should also contain folder with scripts
-myDateDir='2014_11_14\';
-datafile='2014_11_14_TYlabeled.xls';
+myRootDir='T:\TRAVELING_DATA\00_PLATEREADER\'; % should also contain folder with scripts
+myDateDir='2015-06-19\';
+datafile='2015_06_19_CRPcAMP_plasmids_repeat.xls';
 
 myFullDir=[myRootDir myDateDir];
 myPlotsSaveDir=[myFullDir 'Plots\'];
 
 % Location of scripts
-myScriptDir='platereader_scripts\'; % leave empty if scripts are in root
+myScriptDir='C:\Users\Jintram\Documents\SCRIPTS\platereader_scripts\'; % leave empty if scripts are in root
 
 % Get current date to label output files
 currentdate=date();
 
 % Depends on data but needed for general functioning script
-load([myRootDir myScriptDir 'myColor.mat'],'myColor'); % load MW colors
+load([myScriptDir 'myColor.mat'],'myColor'); % load MW colors
 
 % *************************************************
 % Some general setting
 % *************************************************
+
+% Some parameters for special cases
+% If default measurement was used, default values can be used for 
+% TIMEINDEXES and ODINDEXES, but when e.g. platereader also measured GFP
+% signal, then the values might be in different fields.
+% E.g., code for 1st measurement being fluor:
+%{ TIMEINDEXES=[7,9,11], ODINDEXES   = [8, 10, 12] %}
+if ~exist('TIMEINDEXES'), TIMEINDEXES = [5, 7,  9, 11]; end
+if ~exist('ODINDEXES'), ODINDEXES   = [6, 8, 10, 12]; end
+
 
 % Some additional wells to be ignored aside from those marked with 
 % realData=0.
@@ -104,7 +114,7 @@ for name=sheets
 end
 
 [~, DescriptionPlateCoordinates]=xlsread([myFullDir 'plateCoordinates.xlsx'],'C4:N11'); %what is tested on which position
-load([myRootDir myScriptDir 'PositionNames.mat']); % cell array with 'A1' 'B1' etc
+load([myScriptDir 'PositionNames.mat']); % cell array with 'A1' 'B1' etc
 %
 % nb: the timefield is now in IEEE format and can be converted into minutes
 % by DJK_getMinutesfromTimestamp(timeIeee). Timefield will be converted to
@@ -177,22 +187,27 @@ end
 
 % sort data (now stored in data)
 for i=1:length(sortedData)
+    % each line of sortedData corresponds to a well, find indices of well
+    % corresponding to current line of sortedData.
     idx=find(strcmp(textdata(:,3),sortedData(i).wellCoordinate)==1);
-    clear dummy
-    
-    % move data from "raw" into dummy variable
-    dummy(:,1)=[data(idx,5); data(idx,7); data(idx,9); data(idx,11)]; %time
-    dummy(:,2)=[data(idx,6); data(idx,8); data(idx,10); data(idx,12)]; %OD
-    
+
+    % Collect data for this well for processing
+    currentTimes=[]; currentODs=[];
+    for j = 1:numel(TIMEINDEXES)
+        currentTimes = [currentTimes; data(idx,TIMEINDEXES(j))]; 
+        currentODs = [currentODs; data(idx,ODINDEXES(j))];
+        
+    end
+    currentTimesAndODs=[currentTimes(:), currentODs(:)]; %time
     % Process dummy var   
     % bring into right order (strange original excel format)
-    dummy=sortrows(dummy,1);
+    currentTimesAndODs=sortrows(currentTimesAndODs,1);
     % convert time to hours
-    dummy(:,1)=DJK_getMinutesFromTimestamp(dummy(:,1))/60;    
+    currentTimesAndODs(:,1)=DJK_getMinutesFromTimestamp(currentTimesAndODs(:,1))/60;    
     
     % Put dummy var into sortedData structure
-    sortedData(i).time=dummy(:,1);
-    sortedData(i).OD=dummy(:,2);
+    sortedData(i).time=currentTimesAndODs(:,1);
+    sortedData(i).OD=currentTimesAndODs(:,2);
     
     % delete NaN values in 'time' and 'OD' (can happen if experiment is
     % aborted)
@@ -206,12 +221,12 @@ for i=1:length(sortedData)
 end
 
 % Create list w. names of wells, excluding 'x' and 'blank'
-dummy=unique(DescriptionPlateCoordinates);
+currentTime=unique(DescriptionPlateCoordinates);
 wellNames={};
-for i=1:length(dummy);
-    if strcmp(dummy(i),'x')==0 & strcmp(dummy(i),'blank')==0  % HERE possibility to exclude 
+for i=1:length(currentTime);
+    if strcmp(currentTime(i),'x')==0 & strcmp(currentTime(i),'blank')==0  % HERE possibility to exclude 
                                                               % more names (e.g. contaminated wells)
-        wellNames{end+1,1}=char(dummy(i));
+        wellNames{end+1,1}=char(currentTime(i));
     end
 end
 
@@ -241,7 +256,6 @@ if exist(myPlotsSaveDir)~=7
   end
 end
 
-clear i dummy realData idx idx_col idx_row data textdata status msg id idxtime idxod
 
 %% (2)
 % ************************************************
@@ -259,10 +273,10 @@ SHOW_FIG_BLANK=1;
 if SHOW_FIG_BLANK
     figure
     clf
-    title('time trace')
+    title('time trace blanks')
     hold on
     xlabel('time [h]')
-    ylabel('OD (600)')
+    ylabel('OD 600nm')
 end
 [blank_row,blank_col]=find(strcmp(DescriptionPlateCoordinates,'blank')==1); %find all blank positions
 numBlanks=length(blank_row); % number of blanks
@@ -282,11 +296,11 @@ end
 avBlankPerTime=avBlankPerTime/numBlanks;
 if SHOW_FIG_BLANK
         % plot averages per timepoint
-        plot(sortedData(1).time,avBlankPerTime,'r','LineWidth',1)
+        plot(sortedData(1).time,avBlankPerTime,'or','LineWidth',1)
         % plot averages per blank
         figure
         errorbar(avPerBlank,stdPerBlank) % MW
-        axis([.5 numBlanks+.5 0 max(avPerBlank)*1.1])
+        axis([.5 numBlanks+.5 min(0-stdPerBlank) max(avPerBlank+stdPerBlank)*1.1])
         title('averages per blank'); xlabel('blank #'); ylabel('OD (600)')
 end
 totalAvBlank=mean(avBlankPerTime); % maybe use complete average instead of av per time point. Todo
@@ -616,7 +630,7 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % Change OD range here (standard = [0.03, 0.08]):
 % XXXXXXXXXXXXXXXX
 %ODmin=3*10^-3; ODmax=7.5*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
-ODmin=0.01; ODmax=0.06;
+ODmin=0.05; ODmax=0.22;
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.
@@ -823,12 +837,12 @@ clear i muManual x0Manual mu x0 idx1 idx2
 % ************************************************
 
 % names of wells, excluding 'x' and 'blank'
-dummy=unique(DescriptionPlateCoordinates);
+currentTime=unique(DescriptionPlateCoordinates);
 wellNames={};
-for i=1:length(dummy);
-    if strcmp(dummy(i),'x')==0 & strcmp(dummy(i),'blank')==0  % HERE possibility to exclude 
+for i=1:length(currentTime);
+    if strcmp(currentTime(i),'x')==0 & strcmp(currentTime(i),'blank')==0  % HERE possibility to exclude 
                                                               % more names (e.g. contaminated wells)
-        wellNames{end+1,1}=char(dummy(i));
+        wellNames{end+1,1}=char(currentTime(i));
     end
 end
 
