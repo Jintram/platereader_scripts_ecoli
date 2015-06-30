@@ -78,7 +78,7 @@ if ~isfield(USERSETTINGS, 'useSmooth')
     USERSETTINGS.useSmooth = 1;
 end
 if ~isfield(USERSETTINGS, 'showBigFit')
-    USERSETTINGS.showBigFit=0; % Default 1 - MW
+    USERSETTINGS.showBigFit=1; % Default 1 - MW
 end
 if ~isfield(USERSETTINGS, 'fitManual');
     USERSETTINGS.fitManual = 0;
@@ -1001,10 +1001,11 @@ for nameidx=1:length(wellNames)    %blubb
                     ylimfit(2)=max(sortedData(i).OD_subtr*1.05);
                     
                 end
-                if (xlimfit(1)>xlimfit(2)) & ylimfit(1)>ylimfit(2)
+                if (xlimfit(1)>xlimfit(2)) | ylimfit(1)>ylimfit(2)
                     xlimfit=[min(sortedData(i).time) max(sortedData(i).time)];
                     ylimfit=[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; 
                 end
+                % Set limits
                 xlim(xlimfit);
                 ylim(ylimfit);
                 
