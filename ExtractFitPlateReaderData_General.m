@@ -6,13 +6,29 @@
 % file contains intrinsically information that time is >24h)
 %
 % ************************************************
-% REQUIRED INPUT:
+% REQUIRED INPUT (with examples):
+% - Adjust platreader coordinates in plateCoordinates.xlsx. 
+% - USERSETTINGS.myRootDir = 'T:\TRAVELING_DATA\00_PLATEREADER\'; 
+%       directory where all platereader datasets are stored
+% - USERSETTINGS.myDateDir = '2015-06-19\';
+%       directory with platereader dataset to be analyzed (usually this
+%       directory is named with the data of when the data was taken).
+% - USERSETTINGS.datafile = '2015_06_19_CRPcAMP_plasmids_repeat.xls';
+%       name of the excel datafile created by platereader software
+%       (created with export function of that software).
+% - TIMEINDEXES
+%       optional parameter for special case;
+%       sets column indices which are regarded as time measurements. 
+%       parameter needs to be altered when e.g. one of measurements is GFP.
+% - ODINDEXES
+%       optional parameter for special case;
+%       sets column indices which are regarded as OD measurements. 
+%       parameter needs to be altered when e.g. one of measurements is GFP.
+% - There are also some hard-coded parameters, see first section below.
+% REQUIRED FILES:
 % - Excel file form Plate reader (e.g. '120620.xls')
 % - Excel file with description of each well (e.g. '#553' or 'glucose' in 
 %                                  'plateCoordinates.xlsx')
-%          ************************************************************************
-%          ********** ADJUST plateCoordinates.xlsx AND SAVE IN DATEFOLDER *********
-%          ************************************************************************
 %
 % OUTPUT:
 % - .txt file with fitted growth rates
@@ -33,29 +49,54 @@
 %                    (well nr)
 
 %% (1) Setting directories and such
-% ************************************************
-% specify folder, date, etc
-% ************************************************
-myRootDir='T:\TRAVELING_DATA\00_PLATEREADER\'; % should also contain folder with scripts
-myDateDir='2015-06-19\';
-datafile='2015_06_19_CRPcAMP_plasmids_repeat.xls';
 
-myFullDir=[myRootDir myDateDir];
-myPlotsSaveDir=[myFullDir 'Plots\'];
+% User USERSETTINGS (see comment above for explanation)
+if ~exist('USERSETTINGS')
+    disp('WARNING: No usersettings found! Please give USERSETTINGS. Now using USERSETTINGS stored in script.')
+    disp('See comments for more information.');
+    
+    USERSETTINGS.myRootDir='T:\TRAVELING_DATA\00_PLATEREADER\';
+    USERSETTINGS.myDateDir='2015-06-19\';
+    USERSETTINGS.datafile='2015_06_19_CRPcAMP_plasmids_repeat.xls';
+end
+if ~isfield(USERSETTINGS, 'showBlankFig')
+    USERSETTINGS.showBlankFig=1;
+    disp('USERSETTINGS.showBlankFig set to default value, 1');
+end
+if ~isfield(USERSETTINGS, 'hideGraphs')
+    USERSETTINGS.hideGraphs = 0;
+    disp('USERSETTINGS.hideGraphs set to default value, 0'); 
+end
+if ~isfield(USERSETTINGS, 'ODmin')
+    USERSETTINGS.ODmin=0.05; 
+    USERSETTINGS.ODmax=0.22;
+    disp('USERSETTINGS.ODmin and ODmax set to defualts');
+end
+if ~isfield(USERSETTINGS, 'useSmooth')
+    % Set whether data should be smoothed first (i.e. whether moving avg should
+    % be used as input).
+    USERSETTINGS.useSmooth = 1;
+end
+if ~isfield(USERSETTINGS, 'showBigFit')
+    USERSETTINGS.showBigFit=0; % Default 1 - MW
+end
+if ~isfield(USERSETTINGS, 'fitManual');
+    USERSETTINGS.fitManual = 0;
+    disp('USERSETTINGS.fitManual set to default, 0');
+end
 
-% Location of scripts
-myScriptDir='C:\Users\Jintram\Documents\SCRIPTS\platereader_scripts\'; % leave empty if scripts are in root
+% Some hard-coded configuration options:
+windowSize=21; % needs to be odd number! - windowsize for moving average
 
-% Get current date to label output files
-currentdate=date();
+% For determining plateau values of plots
+PLATEAUSTART = 0.95; % fraction of data after which averaging is performed 
+                  % to estimate plateau value.
 
-% Depends on data but needed for general functioning script
-load([myScriptDir 'myColor.mat'],'myColor'); % load MW colors
+SUMMARYPLOTDIRNAME = 'Summaryplots\';
+MYCATEGORIEPLOTDIRNAME = 'categoriePlots\';
 
-% *************************************************
-% Some general setting
-% *************************************************
-
+SHOW_FIG_FITMANUAL = 0; % This is rather unused
+                  
 % Some parameters for special cases
 % If default measurement was used, default values can be used for 
 % TIMEINDEXES and ODINDEXES, but when e.g. platereader also measured GFP
@@ -64,6 +105,20 @@ load([myScriptDir 'myColor.mat'],'myColor'); % load MW colors
 %{ TIMEINDEXES=[7,9,11], ODINDEXES   = [8, 10, 12] %}
 if ~exist('TIMEINDEXES'), TIMEINDEXES = [5, 7,  9, 11]; end
 if ~exist('ODINDEXES'), ODINDEXES   = [6, 8, 10, 12]; end
+
+% Creating parameters
+% ===
+
+% Directory with datafiles
+myFullDir=[USERSETTINGS.myRootDir USERSETTINGS.myDateDir];
+% Output directory for plots
+myPlotsSaveDir=[myFullDir 'Plots\'];
+
+% Get current date to label output files
+currentdate=date();
+
+% Depends on data but needed for general functioning script
+load(['myColor.mat'],'myColor'); % load MW colors
 
 
 % Some additional wells to be ignored aside from those marked with 
@@ -84,14 +139,14 @@ availableMarkerSpecifiers = {'+','o','*','.','x','s','d','^','v','>','<','p','h'
 % More extended version to allow for long measurement files 
 % (These are spread over multiple sheets by the platereader software. A
 % data sheet can be recognized by the word "List" in the name.)
-[myinfo, sheets]=xlsfinfo([myFullDir, datafile]);
+[myinfo, sheets]=xlsfinfo([myFullDir, USERSETTINGS.datafile]);
 data=[]; textdata=[];
 sheet_idx=0;
 for name=sheets
     sheet_idx=sheet_idx+1;
     if ~isempty(strfind(name{1},'List'))
         disp(['Loading sheet ' name{1}])
-        [tempData tempTextdata]=xlsread([myFullDir, datafile],sheet_idx);
+        [tempData tempTextdata]=xlsread([myFullDir, USERSETTINGS.datafile],sheet_idx);
         
         % if header line was imported into 'tempTextdata', delete this line
         if size(tempTextdata,1)==size(tempData,1)+1
@@ -114,7 +169,7 @@ for name=sheets
 end
 
 [~, DescriptionPlateCoordinates]=xlsread([myFullDir 'plateCoordinates.xlsx'],'C4:N11'); %what is tested on which position
-load([myScriptDir 'PositionNames.mat']); % cell array with 'A1' 'B1' etc
+load(['PositionNames.mat']); % cell array with 'A1' 'B1' etc
 %
 % nb: the timefield is now in IEEE format and can be converted into minutes
 % by DJK_getMinutesfromTimestamp(timeIeee). Timefield will be converted to
@@ -269,8 +324,7 @@ close all;
 % 'blank'= medium without bacteria -> subtract from all other entries
 % all blank data is averaged (over all positions, but individually for each
 % time point)
-SHOW_FIG_BLANK=1;
-if SHOW_FIG_BLANK
+if USERSETTINGS.showBlankFig
     figure
     clf
     title('time trace blanks')
@@ -286,7 +340,7 @@ for i=1:numBlanks
     wellName=PositionNames(blank_row(i),blank_col(i)); % e.g. 'A1'
     idx=find(strcmp(wellCoordinates,wellName)==1); % which entry in sortedData corresponds to wellName
     avBlankPerTime=avBlankPerTime+sortedData(idx).OD;
-    if SHOW_FIG_BLANK
+    if USERSETTINGS.showBlankFig
         plot(sortedData(idx).time,sortedData(idx).OD,'x','Color', 0.8*i/numBlanks*[1 1 1])
     end
     % determine avg and std per blank
@@ -294,7 +348,7 @@ for i=1:numBlanks
     stdPerBlank = [stdPerBlank std(sortedData(idx).OD)]; % MW
 end
 avBlankPerTime=avBlankPerTime/numBlanks;
-if SHOW_FIG_BLANK
+if USERSETTINGS.showBlankFig
         % plot averages per timepoint
         plot(sortedData(1).time,avBlankPerTime,'or','LineWidth',1)
         % plot averages per blank
@@ -310,24 +364,21 @@ totalAvBlank=mean(avBlankPerTime); % maybe use complete average instead of av pe
 for i=1:length(sortedData)
     sortedData(i).OD_subtr = sortedData(i).OD-avBlankPerTime;
 end
-clear SHOW_FIG_BLANK blank_row blank_col numBlanks i idx wellName
+clear blank_row blank_col numBlanks i idx wellName
 
 %% (3)
 % ************************************************ 
 % Plot all graphs grouped by category, without fitting
 % ************************************************
 
-HIDE_GRAPHS=1; % TODO MW - doesn't work
-windowSize=21; % needs to be odd number! - windowsize for moving average
-
-% For determining plateau values of plots
+% Output vars
 myPlateauValues     = [];
 myPlateauValues_std = [];
-PLATEAUSTART = 0.95; % fraction of data after which averaging is performed 
-                  % to estimate plateau value.
 
-%create subSaveDirectory for these plots
-myJustPlotDir=[myPlotsSaveDir 'Rawplots\'];
+% Create subsave dir if doesn't exist.
+
+%name for subSaveDirectory for categorie plots
+myJustPlotDir=[myPlotsSaveDir MYCATEGORIEPLOTDIRNAME];
 if exist(myJustPlotDir)~=7
   [status,msg,id] = mymkdir([myJustPlotDir]);
   if status == 0
@@ -357,7 +408,7 @@ for nameidx=1:length(wellNames)
     hold on
     xlabel('time [h]')
     ylabel('OD')      
-    if HIDE_GRAPHS
+    if USERSETTINGS.hideGraphs
         set(h,'Visible','off'); % TODO MW - doesn't work
     end         
     % logplots
@@ -369,7 +420,7 @@ for nameidx=1:length(wellNames)
     xlabel('time [h]')
     ylabel('OD')        
     % hide plots if desired  
-    if HIDE_GRAPHS
+    if USERSETTINGS.hideGraphs
         set(hlog,'Visible','off'); % TODO MW - doesn't work
     end     
     
@@ -486,10 +537,8 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % TODO MW: and also in subplot figure
 % ************************************************
 
-HIDE_GRAPHS = 0;
-
 %create subSaveDirectory for these plots
-myJustPlotDir=[myPlotsSaveDir 'Summaryplots\'];
+myJustPlotDir=[myPlotsSaveDir SUMMARYPLOTDIRNAME];
 if exist(myJustPlotDir)~=7
   [status,msg,id] = mymkdir([myJustPlotDir]);
   if status == 0
@@ -510,7 +559,7 @@ title([' OD values over time'])
 hold on
 xlabel('time [h]')
 ylabel('OD')      
-if HIDE_GRAPHS
+if USERSETTINGS.hideGraphs
     set(h,'Visible','off'); % TODO MW - doesn't work
 end         
 % logplots
@@ -522,7 +571,7 @@ hold on
 xlabel('time [h]')
 ylabel('OD')        
 % hide plots if desired  
-if HIDE_GRAPHS
+if USERSETTINGS.hideGraphs
     set(hlog,'Visible','off'); % TODO MW - doesn't work
 end   
 
@@ -623,14 +672,7 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 %}
 
 %% (4) choose fitTime according to OD thresholds 
-% ************************************************
-% choose fitTime according to OD thresholds 
-% ************************************************
-% XXXXXXXXXXXXXXXX
-% Change OD range here (standard = [0.03, 0.08]):
-% XXXXXXXXXXXXXXXX
-%ODmin=3*10^-3; ODmax=7.5*10^-3; % does not take into account sudden random umps over threshold (e.g. avoid by averaging)
-ODmin=0.05; ODmax=0.22;
+% Set USERSETTINGS.ODmin and ODmax to define tresholds
 
 %reset all actual data to 'real data' -> also "bad wells"are considered for
 % fitting as real data. only background and blank are not considered.
@@ -641,7 +683,7 @@ for i=1:length(sortedData)
 end
 
 %create subSaveDirectory according to fit OD
-myPlotsSaveDirODsub=[myPlotsSaveDir 'ODmin'  num2str(ODmin) 'ODmax' num2str(ODmax) '\'];
+myPlotsSaveDirODsub=[myPlotsSaveDir 'ODmin'  num2str(USERSETTINGS.ODmin) 'ODmax' num2str(USERSETTINGS.ODmax) '\'];
 if exist(myPlotsSaveDirODsub)~=7
   [status,msg,id] = mymkdir([myPlotsSaveDirODsub]);
   if status == 0
@@ -656,8 +698,8 @@ for i=1:length(sortedData)
     if sortedData(i).realData==1 % ignore blanks and empty wells
         
         % obtain all values above and below specified values ODmin ODmax
-        idxODminOrHigher=find(sortedData(i).movingAverage>ODmin);
-        idxODmaxOrLower=find(sortedData(i).movingAverage<ODmax);
+        idxODminOrHigher=find(sortedData(i).movingAverage>USERSETTINGS.ODmin);
+        idxODmaxOrLower=find(sortedData(i).movingAverage<USERSETTINGS.ODmax);
         
         % get min and max of those
         idxMin=min(idxODminOrHigher);
@@ -690,86 +732,85 @@ clear i idxODmaxOrLower idxODminOrHigher idxMin idxMax status msg id
 % ************************************************
 % Select manual fitranges
 % ************************************************
+if USERSETTINGS.fitManual
 
-% These are important for plotting later
-ignoreList(end+1)={'blank'};
-ignoreList(end+1)={'x'};
+    % These are important for plotting later
+    ignoreList(end+1)={'blank'};
+    ignoreList(end+1)={'x'};
 
-% Set figure
-m=figure(1);
+    % Set figure
+    m=figure(1);
 
-for i=1:length(sortedData) 
-        
-        % unless not to be set manually
-        if ~ismember(sortedData(i).DescriptionPos,ignoreList) & sortedData(i).realData
-            
-            % Plot the current well
-            clf;
-            hold on
-            set(gca, 'Yscale', 'log');
-            xlabel('time [h]')
-            ylabel('OD')            
-            title([sortedData(i).DescriptionPos ' - PLEASE DETERMINE {X1,X2} FOR FITRANGE'])
-              
-            % Plot linear scale            
-            %plot(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
-            % Plot log scale
-            semilogy(sortedData(i).time,sortedData(i).OD_subtr','x','Color',[.5 .5 .5],'Linewidth',2);
-            semilogy(sortedData(i).time(sortedData(i).rangeMovingAverage),sortedData(i).movingAverage','-','Color','r','Linewidth',2);
-                                  
-            % set manual range by using ginput
-            myxy = ginput();
-            
-            % set fitTime
-            fitTimeManual = myxy(:,1)'
-            sortedData(i).fitTimeManual = fitTimeManual;
-            
-            % also update fitrange
-            sortedData(i).fitRangeManual = ...
-                find(sortedData(i).time>=fitTimeManual(1) & sortedData(i).time<= fitTimeManual(2));
-            
-        end
+    for i=1:length(sortedData) 
+
+            % unless not to be set manually
+            if ~ismember(sortedData(i).DescriptionPos,ignoreList) & sortedData(i).realData
+
+                % Plot the current well
+                clf;
+                hold on
+                set(gca, 'Yscale', 'log');
+                xlabel('time [h]')
+                ylabel('OD')            
+                title([sortedData(i).DescriptionPos ' - PLEASE DETERMINE {X1,X2} FOR FITRANGE'])
+
+                % Plot linear scale            
+                %plot(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
+                % Plot log scale
+                semilogy(sortedData(i).time,sortedData(i).OD_subtr','x','Color',[.5 .5 .5],'Linewidth',2);
+                semilogy(sortedData(i).time(sortedData(i).rangeMovingAverage),sortedData(i).movingAverage','-','Color','r','Linewidth',2);
+
+                % set manual range by using ginput
+                myxy = ginput();
+
+                % set fitTime
+                fitTimeManual = myxy(:,1)'
+                sortedData(i).fitTimeManual = fitTimeManual;
+
+                % also update fitrange
+                sortedData(i).fitRangeManual = ...
+                    find(sortedData(i).time>=fitTimeManual(1) & sortedData(i).time<= fitTimeManual(2));
+
+            end
+    end
+
+    close(m);
+
+    % Save this manual selection
+    myfitTimeManual = [];
+    myfitRangeManual = {};
+    for i = 1:length(sortedData)
+        % get current value fitTimeManual
+        currentmyfitTimeManual = sortedData(i).fitTimeManual
+        % make zero to signal it doesnt exist
+        if isempty(currentmyfitTimeManual) currentmyfitTimeManual = [0, 0]; end
+
+        % get current value fitRangeManual
+        currentmyfitRangeManual = sortedData(i).fitRangeManual;    
+        % make zero to signal it doesnt exist
+        if isempty(currentmyfitRangeManual) currentmyfitRangeManual = 0; end
+
+        % Add to array
+        myfitTimeManual = [myfitTimeManual; currentmyfitTimeManual(1:2)];
+        myfitRangeManual{end+1} = currentmyfitRangeManual;
+    end
+
+    % save this data 
+    thetime=clock();
+    mytime=[num2str(thetime(1)) '-' num2str(thetime(2)) '-' num2str(thetime(3)) '_' num2str(thetime(4)) '-' num2str(thetime(5))];
+    save([myFullDir currentdate 'fitTimeManual_ranges' mytime '.mat'],'myfitTimeManual','myfitRangeManual');
+
 end
-
-close(m);
-
-% Save this manual selection
-myfitTimeManual = [];
-myfitRangeManual = {};
-for i = 1:length(sortedData)
-    % get current value fitTimeManual
-    currentmyfitTimeManual = sortedData(i).fitTimeManual
-    % make zero to signal it doesnt exist
-    if isempty(currentmyfitTimeManual) currentmyfitTimeManual = [0, 0]; end
-    
-    % get current value fitRangeManual
-    currentmyfitRangeManual = sortedData(i).fitRangeManual;    
-    % make zero to signal it doesnt exist
-    if isempty(currentmyfitRangeManual) currentmyfitRangeManual = 0; end
-       
-    % Add to array
-    myfitTimeManual = [myfitTimeManual; currentmyfitTimeManual(1:2)];
-    myfitRangeManual{end+1} = currentmyfitRangeManual;
-end
-
-% save this data 
-thetime=clock();
-mytime=[num2str(thetime(1)) '-' num2str(thetime(2)) '-' num2str(thetime(3)) '_' num2str(thetime(4)) '-' num2str(thetime(5))];
-save([myFullDir currentdate 'fitTimeManual_ranges' mytime '.mat'],'myfitTimeManual','myfitRangeManual');
 
 %% (6)
 % ************************************************
 % fit growth rate to each graph
 % ************************************************
 
-% Set whether data should be smoothed first (i.e. whether moving avg should
-% be used as input).
-USESMOOTH = 1;
-
 % If smoothing desired, overwrite original data (TODO MW - change this?!)
 % MW BUG! overwriting original data is not allowed, as it might result in 
 % smoothing the data multiple times!!
-if USESMOOTH
+if USERSETTINGS.useSmooth
     % Copy data structure of OD_subtr to OD_subtr_smooth
     for i = [1:length(sortedData)]        
             sortedData(i).OD_subtr_smooth = sortedData(i).OD_subtr        
@@ -789,7 +830,7 @@ for i=1:length(sortedData)
     % fit growth rate according to fitTimeManual
     if (sortedData(i).realData==1 & ~isempty(sortedData(i).fitTimeManual)) %bad data has '0' as entry in fitTimeManual
         
-        if USESMOOTH
+        if USERSETTINGS.useSmooth
             [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr_smooth,sortedData(i).fitTimeManual);            
         else
             [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTimeManual);
@@ -809,7 +850,7 @@ for i=1:length(sortedData)
         idx1=find(sortedData(i).time==sortedData(i).fitTime(1));
         idx2=find(sortedData(i).time==sortedData(i).fitTime(2));
         if idx2>=idx1+1
-            if USESMOOTH
+            if USERSETTINGS.useSmooth
                 [mu,x0]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr_smooth,sortedData(i).fitTime);
             else
                 [mu,x0]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTime);
@@ -849,10 +890,6 @@ end
 muAvStdev=zeros(length(wellNames),6); 
 % mu -- stdev(mu) --#repetitions --  muManual -- stdev(muManual) -- #repetitions(Manual)
 
-
-SHOW_FIG_FIT=0; % Default 1 - MW
-SHOW_FIG_FITMANUAL=0; % no options to save! not kept uptodate!
-
 % NW's colors
 % myColor=[1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0; 1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0];
 % MW's colors loaded in section (1)
@@ -881,16 +918,16 @@ for nameidx=1:length(wellNames)    %blubb
         ylabel('OD')
         
     end
-    if SHOW_FIG_FIT
+    if USERSETTINGS.showBigFit
         h=figure('Position',[100 100 900 700]);
         clf
-        title([name '.  mu fitted between OD=' num2str(ODmin) ' and ' num2str(ODmax)])
+        title([name '.  mu fitted between OD=' num2str(USERSETTINGS.ODmin) ' and ' num2str(USERSETTINGS.ODmax)])
         hold on
         xlabel('time [h]')
         ylabel('OD')
         %plot OD ranges as horizontal lines                
-        ODmaxline=plot(sortedData(1).time,(zeros(size(sortedData(1).time))+ODmax),'-k');
-        ODminline=plot(sortedData(1).time,(zeros(size(sortedData(1).time))+ODmin),'-k');
+        ODmaxline=plot(sortedData(1).time,(zeros(size(sortedData(1).time))+USERSETTINGS.ODmax),'-k');
+        ODminline=plot(sortedData(1).time,(zeros(size(sortedData(1).time))+USERSETTINGS.ODmin),'-k');
         set(get(get(ODmaxline,'Annotation'),'LegendInformation'),...
                             'IconDisplayStyle','off'); % Exclude line from legend
         set(get(get(ODminline,'Annotation'),'LegendInformation'),...
@@ -927,7 +964,7 @@ for nameidx=1:length(wellNames)    %blubb
                 end
             end
             
-            if SHOW_FIG_FIT
+            if USERSETTINGS.showBigFit
                 figure(h)
                 % plot ignored data in gray and used data in color
                 if sortedData(i).realData==1
@@ -991,7 +1028,7 @@ for nameidx=1:length(wellNames)    %blubb
         std(muManualAccum),length(muManualAccum)];
     
     %create legend and save image
-    if SHOW_FIG_FIT
+    if USERSETTINGS.showBigFit
         eval(['legend(', mylegendText, ',''Location'',''NW'')']);
         figFullName=[myPlotsSaveDirODsub currentdate 'GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
@@ -1012,7 +1049,7 @@ end
 
 % give some output for growthrates and save them in .txt file. 
 %-------------------------------------------------
-fid = fopen([myFullDir 'FittedGrowthRateData_ODrange' num2str(ODmin) '_' num2str(ODmax) '.txt'],'wt');
+fid = fopen([myFullDir 'FittedGrowthRateData_ODrange' num2str(USERSETTINGS.ODmin) '_' num2str(USERSETTINGS.ODmax) '.txt'],'wt');
 % function from Daan
 disp(['  ']); disp(['   '])
 dispAndWrite(fid, ['--------------------------------------------------------------']);
@@ -1027,8 +1064,8 @@ end
 fclose(fid);
 
 % Output above table also to Excel file
-if USESMOOTH smoothyesnow='SMOOTHED'; else smoothyesnow=''; end
-filename = [myFullDir currentdate 'FittedGrowthRateData_' smoothyesnow 'ODrange' num2str(ODmin) '_' num2str(ODmax) '.xlsx'];
+if USERSETTINGS.useSmooth smoothyesnow='SMOOTHED'; else smoothyesnow=''; end
+filename = [myFullDir currentdate 'FittedGrowthRateData_' smoothyesnow 'ODrange' num2str(USERSETTINGS.ODmin) '_' num2str(USERSETTINGS.ODmax) '.xlsx'];
 %disp(['Saving ' filename]);
 %myPlateauTable=table(wellNames,myPlateauValues'; 
 % Sheet w. averages and stds mu
@@ -1050,169 +1087,168 @@ save([myFullDir currentdate 'CompleteAnalyzedData.mat'],'sortedData','muAvStdev'
 % -------------------------
 % Plot half-logarithmic plots for manual fit ranges
 % -------------------------
-% Manual Fit range not implemented in log-plots!
-SHOW_FIG_FIT=1;
 
+if USERSETTINGS.fitManual
 
-% -----------------------------------------------
-%loop over different groups in well (wellNames)
-% -----------------------------------------------
-for nameidx=1:length(wellNames)           
-    
-    name=char(wellNames(nameidx));    
-    
-    % exclude well groups for which manual range is not set + above
-    if ismember(wellNames(nameidx),ignoreList)
-        disp(['Skipping group ' name]);
-        continue
-    end
-       
-    muAccum=[];
-    muManualAccum=[];
-    xlimfit=[10000 0]; %[min(sortedData(i).time) max(sortedData(i).time)]; %start with extreme values
-    ylimfit=[10000 0]; %[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; %start with extreme values
-    colorcounter=0;
-  %  usedColors=[]; % needed for legend in correct color
-  %  dataidx=[]; % array with indices of sortedData that contain 'name'
-    mylegendText=[];
-   
-    % initiate PLOTS
-    if SHOW_FIG_FIT
-        h=figure('Position',[100 100 900 700]);
-        clf
-        set(gca, 'Yscale', 'log');
-        hold on
-        title(['Log-Plot. ' name '.  mu fitted manually, USESMOOTH=' num2str(USESMOOTH)]);
-        %hold on  % "hold on" only after first semilogy-plot
-        xlabel('time [h]');
-        ylabel('log_10(OD)','Interpreter','None');
-    end   
-    
-    ylimMaxDescriptionPos=0; %get max OD (y axis) of repetitive measurements to adjust full axis range  
-    
-    % obtain indices of data with wellname(i)
-    currentDataIdx = cell2mat(membersOfGroup(nameidx));
-    % see if a manual fit exists here
-    %sortedData(currentDataIdx).fitTimeManual
-
-    for i = currentDataIdx
-        
-        if ~isempty(sortedData(i).fitTimeManual)
-        
-            colorcounter=colorcounter+1;
-            % add data for average growth rate if realData is set to =1 )and
-            % if manualFitTime exists)
-            if sortedData(i).realData==1
-                muAccum=[muAccum, sortedData(i).muManual];
-            end
-
-            % PLOT 
-            if SHOW_FIG_FIT
-                
-                figure(h)
-                % plot those graphs for which manual fitTime is chosen
-                currentColor=myColor(colorcounter,:);
-                %plot(sortedData(i).time,log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'Markersize',3);
-                plot(sortedData(i).time,sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',3);
-                % Highlight datapoint used for fit
-                fitRangeManual=sortedData(i).fitRangeManual;
-                plot(sortedData(i).time(fitRangeManual),sortedData(i).OD_subtr(fitRangeManual),'x','Color',currentColor,'MarkerSize',6,'LineWidth',3);
-
-                % plot fitted growth rate
-                if ~isempty(sortedData(i).muManual) 
-                    
-                    fitTimeext=[sortedData(i).fitTimeManual(1)-1:0.01:sortedData(i).fitTimeManual(2)+1];  %in [h]
-                    ODcalc=sortedData(i).x0Manual*2.^(sortedData(i).muManual*fitTimeext);
-                    %fitline=plot(fitTimeext,log(ODcalc)/log(2),'-','Color',currentColor);
-                    fitline=plot(fitTimeext,ODcalc,'-','Color',currentColor,'LineWidth',2);
-                        set(get(get(fitline,'Annotation'),'LegendInformation'),...
-                        'IconDisplayStyle','off'); % Exclude line from legend                            
-                
-                    % get correct xlim and ylim. Also takes ignored data into
-                    % account!! can be changed with a if ... .realdata
-                    % condition
-                    ylimMaxDescriptionPos=max(ylimMaxDescriptionPos,max(sortedData(i).OD_subtr)*1.05);
-                    if length(sortedData(i).fitTime)==2 %exclude failed wells where OD threshold is not reached
-                        xlimfit(1)=min(xlimfit(1),fitTimeext(1)*0.8); xlimfit(2)=max(xlimfit(2),fitTimeext(end)*1.05);
-                        ylimfit(1)=min(ylimfit(1),ODcalc(1))*0.8; ylimfit(2)=max(ylimfit(2),ODcalc(end)*1.05);
-                    else 
-                        xlimfit=[sortedData(i).time(1), sortedData(i).time(end)];
-                        ylimfit(1)=0;
-                        ylimfit(2)=max(sortedData(i).OD_subtr*1.05);
-
-                    end
-                    if (xlimfit(1)>xlimfit(2)) & ylimfit(1)>ylimfit(2)
-                        xlimfit=[min(sortedData(i).time) max(sortedData(i).time)];
-                        ylimfit=[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; 
-                    end
-                    xlim([xlimfit(1) xlimfit(2)+1]);  %blubb
-                    %ylim([log(ODcalc(1))/log(2)-1    log(ODcalc(end))/log(2)+1]);
-                    ylim1 = ylimfit(1);
-                    ylim2 = ylimfit(2)*2;
-                    if ylim2>ylim1
-                        ylim([ylim1 ylim2]);
-                    end
-
-                   % dataidx=[dataidx,i];
-                   % usedColors=[usedColors;currentColor];
-                end
-
-                %collect data for legend
-                if isempty(mylegendText)
-                    mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual) , ', datapoints = ',num2str(length(sortedData(i).fitRangeManual)),'' '''' ];
-                else
-                    mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual), ', datapoints = ',num2str(length(sortedData(i).fitRangeManual)),'' '''' ];
-                end
-               
-            end
-
-        end
-        
-    end
-            
-    %    end
-    %end
-    % end loop over all data and search for repetitions with same 'name'
     % -----------------------------------------------
-    muAvStdev(nameidx,:)=[mean(muAccum),std(muAccum),length(muAccum), mean(muManualAccum),...
-        std(muManualAccum),length(muManualAccum)];
-    
-    %create legend and save image
-    if SHOW_FIG_FIT
-        %create save Directory for log images
-        myPlotsSaveDirLogODsub=[myPlotsSaveDir 'LogPlot_manualRange\'];        
-        if exist(myPlotsSaveDirLogODsub)~=7
-        [status,msg,id] = mymkdir([myPlotsSaveDirLogODsub]);
-            if status == 0
-                disp(['Warning: unable to mkdir ' myPlotssSaveDirLogODSub ' : ' msg]);
-                return;
-            end
+    %loop over different groups in well (wellNames)
+    % -----------------------------------------------
+    for nameidx=1:length(wellNames)           
+
+        name=char(wellNames(nameidx));    
+
+        % exclude well groups for which manual range is not set + above
+        if ismember(wellNames(nameidx),ignoreList)
+            disp(['Skipping group ' name]);
+            continue
         end
-               
-        eval(['legend(', mylegendText, ',''Location'',''Best'')']);
-        figFullName=[myPlotsSaveDirLogODsub currentdate 'GrowthCurves_' name '_automaticFitTime'];
-        saveas(h,[figFullName '.fig'], 'fig');
-        saveas(h,[figFullName '.png'], 'png');
-        %save also image with full axis range
-        xlim([sortedData(1).time(1) sortedData(1).time(end)]);
-        %ylim([log(0.01)/log(2) log(ylimMaxDescriptionPos)/log(2)]);
-        ylim([0 ylimMaxDescriptionPos]);
-        figFullName=[myPlotsSaveDirLogODsub currentdate 'Full_GrowthCurves_' name '_automaticFitTime'];
-        saveas(h,[figFullName '.fig'], 'fig');
-        saveas(h,[figFullName '.png'], 'png');
-        close(h)
+
+        muAccum=[];
+        muManualAccum=[];
+        xlimfit=[10000 0]; %[min(sortedData(i).time) max(sortedData(i).time)]; %start with extreme values
+        ylimfit=[10000 0]; %[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; %start with extreme values
+        colorcounter=0;
+      %  usedColors=[]; % needed for legend in correct color
+      %  dataidx=[]; % array with indices of sortedData that contain 'name'
+        mylegendText=[];
+
+        % initiate PLOTS
+        if USERSETTINGS.showBigFit
+            h=figure('Position',[100 100 900 700]);
+            clf
+            set(gca, 'Yscale', 'log');
+            hold on
+            title(['Log-Plot. ' name '.  mu fitted manually, USESMOOTH=' num2str(USERSETTINGS.useSmooth)]);
+            %hold on  % "hold on" only after first semilogy-plot
+            xlabel('time [h]');
+            ylabel('log_10(OD)','Interpreter','None');
+        end   
+
+        ylimMaxDescriptionPos=0; %get max OD (y axis) of repetitive measurements to adjust full axis range  
+
+        % obtain indices of data with wellname(i)
+        currentDataIdx = cell2mat(membersOfGroup(nameidx));
+        % see if a manual fit exists here
+        %sortedData(currentDataIdx).fitTimeManual
+
+        for i = currentDataIdx
+
+            if ~isempty(sortedData(i).fitTimeManual)
+
+                colorcounter=colorcounter+1;
+                % add data for average growth rate if realData is set to =1 )and
+                % if manualFitTime exists)
+                if sortedData(i).realData==1
+                    muAccum=[muAccum, sortedData(i).muManual];
+                end
+
+                % PLOT 
+                if USERSETTINGS.showBigFit
+
+                    figure(h)
+                    % plot those graphs for which manual fitTime is chosen
+                    currentColor=myColor(colorcounter,:);
+                    %plot(sortedData(i).time,log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'Markersize',3);
+                    plot(sortedData(i).time,sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',3);
+                    % Highlight datapoint used for fit
+                    fitRangeManual=sortedData(i).fitRangeManual;
+                    plot(sortedData(i).time(fitRangeManual),sortedData(i).OD_subtr(fitRangeManual),'x','Color',currentColor,'MarkerSize',6,'LineWidth',3);
+
+                    % plot fitted growth rate
+                    if ~isempty(sortedData(i).muManual) 
+
+                        fitTimeext=[sortedData(i).fitTimeManual(1)-1:0.01:sortedData(i).fitTimeManual(2)+1];  %in [h]
+                        ODcalc=sortedData(i).x0Manual*2.^(sortedData(i).muManual*fitTimeext);
+                        %fitline=plot(fitTimeext,log(ODcalc)/log(2),'-','Color',currentColor);
+                        fitline=plot(fitTimeext,ODcalc,'-','Color',currentColor,'LineWidth',2);
+                            set(get(get(fitline,'Annotation'),'LegendInformation'),...
+                            'IconDisplayStyle','off'); % Exclude line from legend                            
+
+                        % get correct xlim and ylim. Also takes ignored data into
+                        % account!! can be changed with a if ... .realdata
+                        % condition
+                        ylimMaxDescriptionPos=max(ylimMaxDescriptionPos,max(sortedData(i).OD_subtr)*1.05);
+                        if length(sortedData(i).fitTime)==2 %exclude failed wells where OD threshold is not reached
+                            xlimfit(1)=min(xlimfit(1),fitTimeext(1)*0.8); xlimfit(2)=max(xlimfit(2),fitTimeext(end)*1.05);
+                            ylimfit(1)=min(ylimfit(1),ODcalc(1))*0.8; ylimfit(2)=max(ylimfit(2),ODcalc(end)*1.05);
+                        else 
+                            xlimfit=[sortedData(i).time(1), sortedData(i).time(end)];
+                            ylimfit(1)=0;
+                            ylimfit(2)=max(sortedData(i).OD_subtr*1.05);
+
+                        end
+                        if (xlimfit(1)>xlimfit(2)) & ylimfit(1)>ylimfit(2)
+                            xlimfit=[min(sortedData(i).time) max(sortedData(i).time)];
+                            ylimfit=[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; 
+                        end
+                        xlim([xlimfit(1) xlimfit(2)+1]);  %blubb
+                        %ylim([log(ODcalc(1))/log(2)-1    log(ODcalc(end))/log(2)+1]);
+                        ylim1 = ylimfit(1);
+                        ylim2 = ylimfit(2)*2;
+                        if ylim2>ylim1
+                            ylim([ylim1 ylim2]);
+                        end
+
+                       % dataidx=[dataidx,i];
+                       % usedColors=[usedColors;currentColor];
+                    end
+
+                    %collect data for legend
+                    if isempty(mylegendText)
+                        mylegendText=['''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual) , ', datapoints = ',num2str(length(sortedData(i).fitRangeManual)),'' '''' ];
+                    else
+                        mylegendText=[mylegendText, ', ''idx=', num2str(i), ', mu=' num2str(sortedData(i).muManual), ', datapoints = ',num2str(length(sortedData(i).fitRangeManual)),'' '''' ];
+                    end
+
+                end
+
+            end
+
+        end
+
+        %    end
+        %end
+        % end loop over all data and search for repetitions with same 'name'
+        % -----------------------------------------------
+        muAvStdev(nameidx,:)=[mean(muAccum),std(muAccum),length(muAccum), mean(muManualAccum),...
+            std(muManualAccum),length(muManualAccum)];
+
+        %create legend and save image
+        if USERSETTINGS.showBigFit
+            %create save Directory for log images
+            myPlotsSaveDirLogODsub=[myPlotsSaveDir 'LogPlot_manualRange\'];        
+            if exist(myPlotsSaveDirLogODsub)~=7
+            [status,msg,id] = mymkdir([myPlotsSaveDirLogODsub]);
+                if status == 0
+                    disp(['Warning: unable to mkdir ' myPlotssSaveDirLogODSub ' : ' msg]);
+                    return;
+                end
+            end
+
+            eval(['legend(', mylegendText, ',''Location'',''Best'')']);
+            figFullName=[myPlotsSaveDirLogODsub currentdate 'GrowthCurves_' name '_automaticFitTime'];
+            saveas(h,[figFullName '.fig'], 'fig');
+            saveas(h,[figFullName '.png'], 'png');
+            %save also image with full axis range
+            xlim([sortedData(1).time(1) sortedData(1).time(end)]);
+            %ylim([log(0.01)/log(2) log(ylimMaxDescriptionPos)/log(2)]);
+            ylim([0 ylimMaxDescriptionPos]);
+            figFullName=[myPlotsSaveDirLogODsub currentdate 'Full_GrowthCurves_' name '_automaticFitTime'];
+            saveas(h,[figFullName '.fig'], 'fig');
+            saveas(h,[figFullName '.png'], 'png');
+            close(h)
+        end
+
+
     end
-    
-      
+    % and loop over all names (different exp's)
 end
-% and loop over all names (different exp's)
 
 %% (7c)----------------------------
 % -------------------------
 % Plot half-logarithmic plots to check range of exponential phase
 % -------------------------
 % Manual Fit range not implemented in log-plots!
-SHOW_FIG_FIT=1;
 
 % NW's colors:
 %myColor=[1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0; 1 0 0 ; 0 1 0 ; 0 0 1; 1 0.6 0.2;  0 1 1; 0 0.5 0.5; 0 0.6 0; 0.6 0 0.4; 0.8 0.5 0; 0.7 0 0; 0.4 0.2 0.6; 0.6 0.2 0];
@@ -1233,18 +1269,18 @@ for nameidx=1:length(wellNames)    %blubb
     mylegendText=[];
     
     % initiate PLOTS
-    if SHOW_FIG_FIT
+    if USERSETTINGS.showBigFit
         h=figure('Position',[100 100 900 700]);
         clf
         %plot OD ranges as horizontal lines                
-        ODmaxline=semilogy(sortedData(1).time,(zeros(size(sortedData(1).time))+ODmax),'-k');
+        ODmaxline=semilogy(sortedData(1).time,(zeros(size(sortedData(1).time))+USERSETTINGS.ODmax),'-k');
         hold on
-        ODminline=plot(sortedData(1).time,(zeros(size(sortedData(1).time))+ODmin),'-k');
+        ODminline=plot(sortedData(1).time,(zeros(size(sortedData(1).time))+USERSETTINGS.ODmin),'-k');
         set(get(get(ODmaxline,'Annotation'),'LegendInformation'),...
                             'IconDisplayStyle','off'); % Exclude line from legend
         set(get(get(ODminline,'Annotation'),'LegendInformation'),...
                             'IconDisplayStyle','off'); % Exclude line from legend
-        title(['Log-Plot. ' name '.  mu fitted between OD=' num2str(ODmin) ' and ' num2str(ODmax)])
+        title(['Log-Plot. ' name '.  mu fitted between OD=' num2str(USERSETTINGS.ODmin) ' and ' num2str(USERSETTINGS.ODmax)])
         %hold on  % "hold on" only after first semilogy-plot
         xlabel('time [h]')
         ylabel('log_10(OD)','Interpreter','None')
@@ -1268,7 +1304,7 @@ for nameidx=1:length(wellNames)    %blubb
             end
             
             % PLOT 
-            if SHOW_FIG_FIT
+            if USERSETTINGS.showBigFit
                 figure(h)
                 % plot ignored data in gray and used data in color
                 if sortedData(i).realData==1
@@ -1342,9 +1378,9 @@ for nameidx=1:length(wellNames)    %blubb
         std(muManualAccum),length(muManualAccum)];
     
     %create legend and save image
-    if SHOW_FIG_FIT
+    if USERSETTINGS.showBigFit
         %create save Directory for log images
-        myPlotsSaveDirLogODsub=[myPlotsSaveDir 'LogPlot_ODmin'  num2str(ODmin) 'ODmax' num2str(ODmax) '\'];        
+        myPlotsSaveDirLogODsub=[myPlotsSaveDir 'LogPlot_ODmin'  num2str(USERSETTINGS.ODmin) 'ODmax' num2str(USERSETTINGS.ODmax) '\'];        
         if exist(myPlotsSaveDirLogODsub)~=7
         [status,msg,id] = mymkdir([myPlotsSaveDirLogODsub]);
             if status == 0
