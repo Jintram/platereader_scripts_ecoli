@@ -12,6 +12,8 @@
 % finish the analysis (either 
 % ExtractFitPlateReaderData_General_Part2_OD.m or 
 % ExtractFitPlateReaderData_General_Part2_Fluorescence.m).
+% See README_example_execution.m for an example how to run part 1 and 2.
+% 
 % 
 %
 % ************************************************
@@ -34,6 +36,9 @@
 %       sets column indices which are regarded as OD measurements. 
 %       parameter needs to be altered when e.g. one of measurements is GFP.
 % - There are also some hard-coded parameters, see first section below.
+% REQUIRED FOR FLUO ANALYSIS ONLY:
+% - USERSETTINGS.wellNamesToPlot  
+%       cell with the names of which wells to plot
 % REQUIRED FILES:
 % - Excel file form Plate reader (e.g. '120620.xls')
 % - Excel file with description of each well (e.g. '#553' or 'glucose' in 
@@ -44,6 +49,7 @@
 % - plot with fitted growth rates for each group of repeated experiments
 % - sortedData.mat: matlab file containing all info about the wells and
 %     growth rates
+% (- wellNames and membersOfGroup)
 % ************************************************
 %
 %
@@ -95,6 +101,9 @@ end
 if ~isfield(USERSETTINGS, 'customSuffix')
     USERSETTINGS.customSuffix='';
 end
+if ~isfield(USERSETTINGS, 'ODorFluor')
+    USERSETTINGS.ODorFluor=1; % 1 = OD, 2 = Fluor
+end
 
 % Some hard-coded configuration options:
 windowSize=21; % needs to be odd number! - windowsize for moving average
@@ -117,8 +126,22 @@ SHOW_FIG_FITMANUAL = 0; % This is rather unused
 if ~exist('TIMEINDEXES'), TIMEINDEXES = [5, 7,  9, 11]; end
 if ~exist('ODINDEXES'), ODINDEXES   = [6, 8, 10, 12]; end
 
+
 %% Creating parameters, directories & loading data
 % ===
+
+% Create correct field names depending OD or fluor measurement
+if USERSETTINGS.ODorFluor==1
+    timeField    = 'timeOD';
+    yField       = 'OD';
+    yField_subtr = 'OD_subtr';    
+elseif USERSETTINGS.ODorFluor==2
+    timeField    = 'timeFluor';
+    yField       = 'fluor';
+    yField_subtr = 'fluor_subtr';
+else
+    error('Something went wrong. USERSETTINGS.ODorFluor should be 1 or 2.');
+end
 
 % Directory with datafiles
 myFullDir=[USERSETTINGS.myRootDir USERSETTINGS.myDateDir];
@@ -224,31 +247,42 @@ mainscriptsettingran=1; % Flag for other scripts
 wellCoordinates=unique(textdata(:,3));
 
 % prepare for sorting well plate data
-clear sortedData;
-sortedData=struct;
+if USERSETTINGS.ODorFluor == 1
+    clear sortedData;
+    sortedData=struct;
+end
 for i=1:length(wellCoordinates)
-    sortedData(i).wellCoordinate=char(wellCoordinates(i));
-    sortedData(i).time=[];
-    sortedData(i).OD=[];
-    sortedData(i).OD_subtr=[];
-    sortedData(i).fitTime=[];    
-    sortedData(i).fitTimeManual=[];
-    sortedData(i).fitRange=[];
-    sortedData(i).fitRangeManual=[];    
+
+    % Field that y-data is written to, either "OD" and "OD_substr", or 
+    % "fluor" and "fluor_subtr".
     
-    [idx_row,idx_col]=find(strcmp(PositionNames,wellCoordinates(i))==1);
+    sortedData(i).(yField)=[];
+    sortedData(i).(yField_subtr)=[];    
     
-    sortedData(i).DescriptionPos=char(DescriptionPlateCoordinates(idx_row,idx_col));
-    
-    realData=(strcmp(sortedData(i).DescriptionPos,'blank')==0 & strcmp(sortedData(i).DescriptionPos,'x')==0);    
-    sortedData(i).realData=realData;
-    
-    sortedData(i).muManual=[];
-    sortedData(i).x0Manual=[];
-    sortedData(i).mu=[];
-    sortedData(i).x0=[];
-    sortedData(i).movingAverage=[];
-    sortedData(i).rangeMovingAverage=[];
+    % Only required for OD measurement
+    if USERSETTINGS.ODorFluor==1
+        sortedData(i).wellCoordinate=char(wellCoordinates(i));
+        sortedData(i).(timeField)=[];    
+
+        sortedData(i).fitTime=[];    
+        sortedData(i).fitTimeManual=[];
+        sortedData(i).fitRange=[];
+        sortedData(i).fitRangeManual=[];    
+
+        [idx_row,idx_col]=find(strcmp(PositionNames,wellCoordinates(i))==1);
+
+        sortedData(i).DescriptionPos=char(DescriptionPlateCoordinates(idx_row,idx_col));
+
+        realData=(strcmp(sortedData(i).DescriptionPos,'blank')==0 & strcmp(sortedData(i).DescriptionPos,'x')==0);    
+        sortedData(i).realData=realData;
+
+        sortedData(i).muManual=[];
+        sortedData(i).x0Manual=[];
+        sortedData(i).mu=[];
+        sortedData(i).x0=[];
+        sortedData(i).movingAverage=[];
+        sortedData(i).rangeMovingAverage=[];
+    end
 end
 
 % sort data (now stored in data)
@@ -258,13 +292,13 @@ for i=1:length(sortedData)
     idx=find(strcmp(textdata(:,3),sortedData(i).wellCoordinate)==1);
 
     % Collect data for this well for processing
-    currentTimes=[]; currentODs=[];
+    currentTimes=[]; currentYvalues=[];
     for j = 1:numel(TIMEINDEXES)
         currentTimes = [currentTimes; data(idx,TIMEINDEXES(j))]; 
-        currentODs = [currentODs; data(idx,ODINDEXES(j))];
+        currentYvalues = [currentYvalues; data(idx,ODINDEXES(j))];
         
     end
-    currentTimesAndODs=[currentTimes(:), currentODs(:)]; %time
+    currentTimesAndODs=[currentTimes(:), currentYvalues(:)]; %time
     % Process dummy var   
     % bring into right order (strange original excel format)
     currentTimesAndODs=sortrows(currentTimesAndODs,1);
@@ -272,17 +306,17 @@ for i=1:length(sortedData)
     currentTimesAndODs(:,1)=DJK_getMinutesFromTimestamp(currentTimesAndODs(:,1))/60;    
     
     % Put dummy var into sortedData structure
-    sortedData(i).time=currentTimesAndODs(:,1);
-    sortedData(i).OD=currentTimesAndODs(:,2);
+    sortedData(i).(timeField)=currentTimesAndODs(:,1);
+    sortedData(i).(yField)=currentTimesAndODs(:,2);
     
     % delete NaN values in 'time' and 'OD' (can happen if experiment is
     % aborted)
-    idxtime=~isnan(sortedData(i).time);
-    sortedData(i).time=sortedData(i).time(idxtime);
-    sortedData(i).OD=sortedData(i).OD(idxtime);
-    idxod=~isnan(sortedData(i).OD);
-    sortedData(i).time=sortedData(i).time(idxod);
-    sortedData(i).OD=sortedData(i).OD(idxod);
+    idxtime=~isnan(sortedData(i).(timeField));
+    sortedData(i).(timeField)=sortedData(i).(timeField)(idxtime);
+    sortedData(i).(yField)=sortedData(i).(yField)(idxtime);
+    idxod=~isnan(sortedData(i).(yField));
+    sortedData(i).(timeField)=sortedData(i).(timeField)(idxod);
+    sortedData(i).(yField)=sortedData(i).(yField)(idxod);
     
 end
 
@@ -301,15 +335,17 @@ end
 % sortedData entries that belong to the same group (i.e. the same
 % wellName). The index of membersOfGroups itself corresponds to the index
 % of wellNames.
-membersOfGroup={};
-for i = [1:length(wellNames)]
-    currentGroupMembers=[];
-    for j = [1:length(sortedData)]
-        if strcmp(wellNames(i),sortedData(j).DescriptionPos)
-            currentGroupMembers = [currentGroupMembers j];
+if USERSETTINGS.ODorFluor == 1 % only when OD is processed
+    membersOfGroup={};
+    for i = [1:length(wellNames)]
+        currentGroupMembers=[];
+        for j = [1:length(sortedData)]
+            if strcmp(wellNames(i),sortedData(j).DescriptionPos)
+                currentGroupMembers = [currentGroupMembers j];
+            end
         end
+        membersOfGroup(end+1) = {currentGroupMembers};
     end
-    membersOfGroup(end+1) = {currentGroupMembers};
 end
 
 %----------------------------------------------------------
@@ -350,18 +386,18 @@ avPerBlank = []; stdPerBlank = []; % MW
 for i=1:numBlanks
     wellName=PositionNames(blank_row(i),blank_col(i)); % e.g. 'A1'
     idx=find(strcmp(wellCoordinates,wellName)==1); % which entry in sortedData corresponds to wellName
-    avBlankPerTime=avBlankPerTime+sortedData(idx).OD;
+    avBlankPerTime=avBlankPerTime+sortedData(idx).(yField);
     if USERSETTINGS.showBlankFig
-        plot(sortedData(idx).time,sortedData(idx).OD,'x','Color', 0.8*i/numBlanks*[1 1 1])
+        plot(sortedData(idx).(timeField),sortedData(idx).(yField),'x','Color', 0.8*i/numBlanks*[1 1 1])
     end
     % determine avg and std per blank
-    avPerBlank = [avPerBlank mean(sortedData(idx).OD)]; % MW
-    stdPerBlank = [stdPerBlank std(sortedData(idx).OD)]; % MW
+    avPerBlank = [avPerBlank mean(sortedData(idx).(yField))]; % MW
+    stdPerBlank = [stdPerBlank std(sortedData(idx).(yField))]; % MW
 end
 avBlankPerTime=avBlankPerTime/numBlanks;
 if USERSETTINGS.showBlankFig
         % plot averages per timepoint
-        plot(sortedData(1).time,avBlankPerTime,'or','LineWidth',1)
+        plot(sortedData(1).(timeField),avBlankPerTime,'or','LineWidth',1)
         % plot averages per blank
         figure
         errorbar(avPerBlank,stdPerBlank) % MW
@@ -373,7 +409,7 @@ totalAvBlank=mean(avBlankPerTime); % maybe use complete average instead of av pe
 %add fields with blank subtracted to 'sortedData' (only useful for fields with actual
 %bacteria in it, but never bothers)
 for i=1:length(sortedData)
-    sortedData(i).OD_subtr = sortedData(i).OD-avBlankPerTime;
+    sortedData(i).(yField_subtr) = sortedData(i).(yField)-avBlankPerTime;
 end
 clear blank_row blank_col numBlanks i idx wellName
 
@@ -415,10 +451,10 @@ for nameidx=1:length(wellNames)
     % normal scale plots
     h=figure(1);    
     clf
-    title([name ' OD values over time'])
+    title([name ' ' yField ' values over time'])
     hold on
     xlabel('time [h]')
-    ylabel('OD')      
+    ylabel(yField)      
     if USERSETTINGS.hideGraphs
         set(h,'Visible','off'); % TODO MW - doesn't work
     end         
@@ -426,10 +462,10 @@ for nameidx=1:length(wellNames)
     hlog=figure(2); 
     clf    
     set(gca, 'Yscale', 'log')
-    title(['log ' name ' OD values over time'])
+    title(['log ' name ' ' yField ' values over time'])
     hold on
     xlabel('time [h]')
-    ylabel('OD')        
+    ylabel(yField)        
     % hide plots if desired  
     if USERSETTINGS.hideGraphs
         set(hlog,'Visible','off'); % TODO MW - doesn't work
@@ -451,28 +487,28 @@ for nameidx=1:length(wellNames)
             % Plot the current well
             % Plot linear scale
             figure(h);
-            plot(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
+            plot(sortedData(i).(timeField),sortedData(i).(yField_subtr)','x','Color',myColor(colorcounter,:)','Linewidth',2);
             % Plot log scale
             figure(hlog); % also plot on logarithmic scale
-            semilogy(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
+            semilogy(sortedData(i).(timeField),sortedData(i).(yField_subtr)','x','Color',myColor(colorcounter,:)','Linewidth',2);
            
             % Determine moving averages for this group
-            %[sortedData(i).movingAverage,sortedData(i).rangeMovingAverage]=movingaverage(sortedData(i).OD_subtr,windowSize);
-            [movingAverage,rangeMovingAverage]=movingaverage(sortedData(i).OD_subtr,windowSize);
+            %[sortedData(i).movingAverage,sortedData(i).rangeMovingAverage]=movingaverage(sortedData(i).(yField_subtr),windowSize);
+            [movingAverage,rangeMovingAverage]=movingaverage(sortedData(i).(yField_subtr),windowSize);
             sortedData(i).movingAverage = movingAverage;
             sortedData(i).rangeMovingAverage=rangeMovingAverage;
                        
             myColorNow=floor(myColor(colorcounter,:)*1.2); % quick n dirty edit color
-            figure(h); plot(sortedData(i).time(rangeMovingAverage),movingAverage','-','Color',myColorNow,'Linewidth',2);
-            figure(hlog); semilogy(sortedData(i).time(rangeMovingAverage),movingAverage','-','Color',myColorNow,'Linewidth',2);
+            figure(h); plot(sortedData(i).(timeField)(rangeMovingAverage),movingAverage','-','Color',myColorNow,'Linewidth',2);
+            figure(hlog); semilogy(sortedData(i).(timeField)(rangeMovingAverage),movingAverage','-','Color',myColorNow,'Linewidth',2);
 
             % Collect all data of this group in time and OD vector
-            %myCurrentDataTime = [myCurrentDataTime sortedData(i).time];
-            %myCurrentDataOD_substr = [myCurrentDataOD_substr sortedData(i).OD_subtr];         
+            %myCurrentDataTime = [myCurrentDataTime sortedData(i).(timeField)];
+            %myCurrentDataOD_substr = [myCurrentDataOD_substr sortedData(i).(yField_subtr)];         
             
             % Collect moving averages of this group to be able to determine
             % plateau value later.
-            myCurrentDataOD_substr_movavg = [myCurrentDataOD_substr sortedData(i).OD_subtr];
+            myCurrentDataOD_substr_movavg = [myCurrentDataOD_substr sortedData(i).(yField_subtr)];
             
         end
     end
@@ -522,7 +558,7 @@ h = figure();
 %barh(myPlateauValues);
 barwitherr(myPlateauValues_std,myPlateauValues,'FaceColor',[0.8,0.8,0.8]);
 xlabel('Strain/medium');
-ylabel('OD value');
+ylabel([yField ' value']);
 title(['Plateau values determined from ' num2str(PLATEAUSTART) '-1.00 interval'])
 set(gca, 'XTick', [1:length(wellNames)]);
 set(gca, 'XTickLabel', wellNames);
@@ -569,7 +605,7 @@ clf
 title([' OD values over time'])
 hold on
 xlabel('time [h]')
-ylabel('OD')      
+ylabel(yField)      
 if USERSETTINGS.hideGraphs
     set(h,'Visible','off'); % TODO MW - doesn't work
 end         
@@ -580,7 +616,7 @@ set(gca, 'Yscale', 'log')
 title(['log OD values over time'])
 hold on
 xlabel('time [h]')
-ylabel('OD')        
+ylabel(yField)        
 % hide plots if desired  
 if USERSETTINGS.hideGraphs
     set(hlog,'Visible','off'); % TODO MW - doesn't work
@@ -625,10 +661,10 @@ for nameidx=1:length(wellNames)
         rangeMA=sortedData(i).rangeMovingAverage; % range moving average
         % Plot linear scale
         figure(h);
-        lineh = plot(sortedData(i).time(rangeMA),sortedData(i).movingAverage',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
+        lineh = plot(sortedData(i).(timeField)(rangeMA),sortedData(i).movingAverage',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
         % Plot log scale
         figure(hlog); % also plot on logarithmic scale
-        linehlog = semilogy(sortedData(i).time(rangeMA),sortedData(i).movingAverage',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
+        linehlog = semilogy(sortedData(i).(timeField)(rangeMA),sortedData(i).movingAverage',['-' myCurrentMarker],'Color',myColor(colorcounter,:)','Linewidth',1);
 
         % Determine maxima
         current_max = max(sortedData(i).movingAverage);

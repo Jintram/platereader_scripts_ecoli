@@ -33,22 +33,22 @@ for i=1:length(sortedData)
         idxMax=max(idxODmaxOrLower);
         
         % moving avg has different timerange, so get that one
-        myTimes = sortedData(i).time(sortedData(i).rangeMovingAverage);
+        myTimes = sortedData(i).(timeField)(sortedData(i).rangeMovingAverage);
         
         % use these as base for time window
         startTime = myTimes(idxMin);
         endTime   = myTimes(idxMax);
         if isempty(startTime)
-            startTime=min(sortedData(i).time);
+            startTime=min(sortedData(i).(timeField));
             disp('Warning: Couldn''t find start fit time (taking min).')
         end
         if isempty(endTime)
-            endTime=max(sortedData(i).time);
+            endTime=max(sortedData(i).(timeField));
             disp('Warning: Couldn''t find end fit time (taking max).')
         end
         sortedData(i).fitTime=[startTime, endTime];
         sortedData(i).fitRange = ...
-            find(sortedData(i).time>=startTime & sortedData(i).time<= endTime);
+            find(sortedData(i).(timeField)>=startTime & sortedData(i).(timeField)<= endTime);
         
     else sortedData(i).fitTime=[]; sortedData(i).fitRange=[];
     end
@@ -82,10 +82,10 @@ if USERSETTINGS.fitManual
                 title([sortedData(i).DescriptionPos ' - PLEASE DETERMINE {X1,X2} FOR FITRANGE'])
 
                 % Plot linear scale            
-                %plot(sortedData(i).time,sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
+                %plot(sortedData(i).(timeField),sortedData(i).OD_subtr','x','Color',myColor(colorcounter,:)','Linewidth',2);
                 % Plot log scale
-                semilogy(sortedData(i).time,sortedData(i).OD_subtr','x','Color',[.5 .5 .5],'Linewidth',2);
-                semilogy(sortedData(i).time(sortedData(i).rangeMovingAverage),sortedData(i).movingAverage','-','Color','r','Linewidth',2);
+                semilogy(sortedData(i).(timeField),sortedData(i).OD_subtr','x','Color',[.5 .5 .5],'Linewidth',2);
+                semilogy(sortedData(i).(timeField)(sortedData(i).rangeMovingAverage),sortedData(i).movingAverage','-','Color','r','Linewidth',2);
 
                 % set manual range by using ginput
                 myxy = ginput();
@@ -96,7 +96,7 @@ if USERSETTINGS.fitManual
 
                 % also update fitrange
                 sortedData(i).fitRangeManual = ...
-                    find(sortedData(i).time>=fitTimeManual(1) & sortedData(i).time<= fitTimeManual(2));
+                    find(sortedData(i).(timeField)>=fitTimeManual(1) & sortedData(i).(timeField)<= fitTimeManual(2));
 
             end
     end
@@ -158,9 +158,9 @@ for i=1:length(sortedData)
     if (sortedData(i).realData==1 & ~isempty(sortedData(i).fitTimeManual)) %bad data has '0' as entry in fitTimeManual
         
         if USERSETTINGS.useSmooth
-            [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr_smooth,sortedData(i).fitTimeManual);            
+            [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).(timeField),sortedData(i).OD_subtr_smooth,sortedData(i).fitTimeManual);            
         else
-            [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTimeManual);
+            [muManual,x0Manual]=NW_ExponentialFit_fitTime(sortedData(i).(timeField),sortedData(i).OD_subtr,sortedData(i).fitTimeManual);
         end
         
         sortedData(i).muManual=muManual;
@@ -174,13 +174,13 @@ for i=1:length(sortedData)
     if sortedData(i).realData==1 & length(sortedData(i).fitTime)==2 %exclude failed wells where OD threshold is not reached
         % test if fitTime range contains enough data points (2) to perform
         % fitting
-        idx1=find(sortedData(i).time==sortedData(i).fitTime(1));
-        idx2=find(sortedData(i).time==sortedData(i).fitTime(2));
+        idx1=find(sortedData(i).(timeField)==sortedData(i).fitTime(1));
+        idx2=find(sortedData(i).(timeField)==sortedData(i).fitTime(2));
         if idx2>=idx1+1
             if USERSETTINGS.useSmooth
-                [mu,x0]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr_smooth,sortedData(i).fitTime);
+                [mu,x0]=NW_ExponentialFit_fitTime(sortedData(i).(timeField),sortedData(i).OD_subtr_smooth,sortedData(i).fitTime);
             else
-                [mu,x0]=NW_ExponentialFit_fitTime(sortedData(i).time,sortedData(i).OD_subtr,sortedData(i).fitTime);
+                [mu,x0]=NW_ExponentialFit_fitTime(sortedData(i).(timeField),sortedData(i).OD_subtr,sortedData(i).fitTime);
             end
             sortedData(i).mu=mu;
             sortedData(i).x0=x0;
@@ -228,7 +228,7 @@ for nameidx=1:length(wellNames)    %blubb
     name=char(wellNames(nameidx));
     muAccum=[];
     muManualAccum=[];
-    xlimfit=[10000 0]; %[min(sortedData(i).time) max(sortedData(i).time)]; %start with extreme values
+    xlimfit=[10000 0]; %[min(sortedData(i).(timeField)) max(sortedData(i).(timeField))]; %start with extreme values
     ylimfit=[10000 0]; %[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; %start with extreme values
     colorcounter=0;
   %  usedColors=[]; % needed for legend in correct color
@@ -253,8 +253,8 @@ for nameidx=1:length(wellNames)    %blubb
         xlabel('time [h]')
         ylabel('OD')
         %plot OD ranges as horizontal lines                
-        ODmaxline=plot(sortedData(1).time,(zeros(size(sortedData(1).time))+USERSETTINGS.ODmax),'-k');
-        ODminline=plot(sortedData(1).time,(zeros(size(sortedData(1).time))+USERSETTINGS.ODmin),'-k');
+        ODmaxline=plot(sortedData(1).(timeField),(zeros(size(sortedData(1).(timeField)))+USERSETTINGS.ODmax),'-k');
+        ODminline=plot(sortedData(1).(timeField),(zeros(size(sortedData(1).(timeField)))+USERSETTINGS.ODmin),'-k');
         set(get(get(ODmaxline,'Annotation'),'LegendInformation'),...
                             'IconDisplayStyle','off'); % Exclude line from legend
         set(get(get(ODminline,'Annotation'),'LegendInformation'),...
@@ -283,7 +283,7 @@ for nameidx=1:length(wellNames)    %blubb
             % PLOT 
             if SHOW_FIG_FITMANUAL % not kept uptodate
                 figure(g)
-                plot(sortedData(i).time,sortedData(i).OD_subtr,'Color',myColor(colorcounter,:),'Linewidth',2);
+                plot(sortedData(i).(timeField),sortedData(i).OD_subtr,'Color',myColor(colorcounter,:),'Linewidth',2);
                 if length(sortedData(i).fitTimeManual)==2
                     fitTimeManualext=[sortedData(i).fitTimeManual(1)-1:0.01:sortedData(i).fitTimeManual(2)+1];  %in [h]
                     ODcalcManual=sortedData(i).x0Manual*2.^(sortedData(i).muManual*fitTimeManualext);
@@ -296,10 +296,10 @@ for nameidx=1:length(wellNames)    %blubb
                 % plot ignored data in gray and used data in color
                 if sortedData(i).realData==1
                     currentColor=myColor(colorcounter,:);
-                    plot(sortedData(i).time,sortedData(i).OD_subtr,'Color',currentColor,'Linewidth',2);
+                    plot(sortedData(i).(timeField),sortedData(i).OD_subtr,'Color',currentColor,'Linewidth',2);
                 else
                     currentColor=[1 1 1]*colorcounter/(0.5+colorcounter);
-                    plot(sortedData(i).time,sortedData(i).OD_subtr,'--','Color',currentColor,'Linewidth',1);
+                    plot(sortedData(i).(timeField),sortedData(i).OD_subtr,'--','Color',currentColor,'Linewidth',1);
                 end
                 
                 
@@ -323,13 +323,13 @@ for nameidx=1:length(wellNames)    %blubb
                     xlimfit(1)=min(xlimfit(1),fitTimeext(1)*0.8); xlimfit(2)=max(xlimfit(2),fitTimeext(end)*1.05);
                     ylimfit(1)=min(ylimfit(1),ODcalc(1))*0.8; ylimfit(2)=max(ylimfit(2),ODcalc(end)*1.05);
                 else 
-                    xlimfit=[sortedData(i).time(1), sortedData(i).time(end)];
+                    xlimfit=[sortedData(i).(timeField)(1), sortedData(i).(timeField)(end)];
                     ylimfit(1)=0;
                     ylimfit(2)=max(sortedData(i).OD_subtr*1.05);
                     
                 end
                 if (xlimfit(1)>xlimfit(2)) | ylimfit(1)>ylimfit(2)
-                    xlimfit=[min(sortedData(i).time) max(sortedData(i).time)];
+                    xlimfit=[min(sortedData(i).(timeField)) max(sortedData(i).(timeField))];
                     ylimfit=[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; 
                 end
                 % Set limits
@@ -362,7 +362,7 @@ for nameidx=1:length(wellNames)    %blubb
         saveas(h,[figFullName '.fig'], 'fig');
         saveas(h,[figFullName '.png'], 'png');
         %save also image with full axis range
-        xlim([sortedData(1).time(1) sortedData(1).time(end)]);
+        xlim([sortedData(1).(timeField)(1) sortedData(1).(timeField)(end)]);
         ylim([0 ylimMaxDescriptionPos]);
         figFullName=[myPlotsSaveDirODsub currentdate 'Full_GrowthCurves_' name '_automaticFitTime'];
         saveas(h,[figFullName '.fig'], 'fig');
@@ -433,7 +433,7 @@ if USERSETTINGS.fitManual
 
         muAccum=[];
         muManualAccum=[];
-        xlimfit=[10000 0]; %[min(sortedData(i).time) max(sortedData(i).time)]; %start with extreme values
+        xlimfit=[10000 0]; %[min(sortedData(i).(timeField)) max(sortedData(i).(timeField))]; %start with extreme values
         ylimfit=[10000 0]; %[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; %start with extreme values
         colorcounter=0;
       %  usedColors=[]; % needed for legend in correct color
@@ -476,11 +476,11 @@ if USERSETTINGS.fitManual
                     figure(h)
                     % plot those graphs for which manual fitTime is chosen
                     currentColor=myColor(colorcounter,:);
-                    %plot(sortedData(i).time,log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'Markersize',3);
-                    plot(sortedData(i).time,sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',3);
+                    %plot(sortedData(i).(timeField),log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'Markersize',3);
+                    plot(sortedData(i).(timeField),sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',3);
                     % Highlight datapoint used for fit
                     fitRangeManual=sortedData(i).fitRangeManual;
-                    plot(sortedData(i).time(fitRangeManual),sortedData(i).OD_subtr(fitRangeManual),'x','Color',currentColor,'MarkerSize',6,'LineWidth',3);
+                    plot(sortedData(i).(timeField)(fitRangeManual),sortedData(i).OD_subtr(fitRangeManual),'x','Color',currentColor,'MarkerSize',6,'LineWidth',3);
 
                     % plot fitted growth rate
                     if ~isempty(sortedData(i).muManual) 
@@ -500,13 +500,13 @@ if USERSETTINGS.fitManual
                             xlimfit(1)=min(xlimfit(1),fitTimeext(1)*0.8); xlimfit(2)=max(xlimfit(2),fitTimeext(end)*1.05);
                             ylimfit(1)=min(ylimfit(1),ODcalc(1))*0.8; ylimfit(2)=max(ylimfit(2),ODcalc(end)*1.05);
                         else 
-                            xlimfit=[sortedData(i).time(1), sortedData(i).time(end)];
+                            xlimfit=[sortedData(i).(timeField)(1), sortedData(i).(timeField)(end)];
                             ylimfit(1)=0;
                             ylimfit(2)=max(sortedData(i).OD_subtr*1.05);
 
                         end
                         if (xlimfit(1)>xlimfit(2)) & ylimfit(1)>ylimfit(2)
-                            xlimfit=[min(sortedData(i).time) max(sortedData(i).time)];
+                            xlimfit=[min(sortedData(i).(timeField)) max(sortedData(i).(timeField))];
                             ylimfit=[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; 
                         end
                         xlim([xlimfit(1) xlimfit(2)+1]);  %blubb
@@ -558,7 +558,7 @@ if USERSETTINGS.fitManual
             saveas(h,[figFullName '.fig'], 'fig');
             saveas(h,[figFullName '.png'], 'png');
             %save also image with full axis range
-            xlim([sortedData(1).time(1) sortedData(1).time(end)]);
+            xlim([sortedData(1).(timeField)(1) sortedData(1).(timeField)(end)]);
             %ylim([log(0.01)/log(2) log(ylimMaxDescriptionPos)/log(2)]);
             ylim([0 ylimMaxDescriptionPos]);
             figFullName=[myPlotsSaveDirLogODsub currentdate 'Full_GrowthCurves_' name '_automaticFitTime'];
@@ -589,7 +589,7 @@ for nameidx=1:length(wellNames)    %blubb
     name=char(wellNames(nameidx));
     muAccum=[];
     muManualAccum=[];
-    xlimfit=[10000 0]; %[min(sortedData(i).time) max(sortedData(i).time)]; %start with extreme values
+    xlimfit=[10000 0]; %[min(sortedData(i).(timeField)) max(sortedData(i).(timeField))]; %start with extreme values
     ylimfit=[10000 0]; %[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; %start with extreme values
     colorcounter=0;
   %  usedColors=[]; % needed for legend in correct color
@@ -601,9 +601,9 @@ for nameidx=1:length(wellNames)    %blubb
         h=figure('Position',[100 100 900 700]);
         clf
         %plot OD ranges as horizontal lines                
-        ODmaxline=semilogy(sortedData(1).time,(zeros(size(sortedData(1).time))+USERSETTINGS.ODmax),'-k');
+        ODmaxline=semilogy(sortedData(1).(timeField),(zeros(size(sortedData(1).(timeField)))+USERSETTINGS.ODmax),'-k');
         hold on
-        ODminline=plot(sortedData(1).time,(zeros(size(sortedData(1).time))+USERSETTINGS.ODmin),'-k');
+        ODminline=plot(sortedData(1).(timeField),(zeros(size(sortedData(1).(timeField)))+USERSETTINGS.ODmin),'-k');
         set(get(get(ODmaxline,'Annotation'),'LegendInformation'),...
                             'IconDisplayStyle','off'); % Exclude line from legend
         set(get(get(ODminline,'Annotation'),'LegendInformation'),...
@@ -637,15 +637,15 @@ for nameidx=1:length(wellNames)    %blubb
                 % plot ignored data in gray and used data in color
                 if sortedData(i).realData==1
                     currentColor=myColor(colorcounter,:);
-                    %plot(sortedData(i).time,log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'Markersize',3);
-                    plot(sortedData(i).time,sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',3);
+                    %plot(sortedData(i).(timeField),log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'Markersize',3);
+                    plot(sortedData(i).(timeField),sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',3);
                     % Highlight datapoint used for fit
                     fitRange=sortedData(i).fitRange;
-                    plot(sortedData(i).time(fitRange),sortedData(i).OD_subtr(fitRange),'x','Color',currentColor,'MarkerSize',6,'LineWidth',3);
+                    plot(sortedData(i).(timeField)(fitRange),sortedData(i).OD_subtr(fitRange),'x','Color',currentColor,'MarkerSize',6,'LineWidth',3);
                 else
                     currentColor=[1 1 1]*colorcounter/(0.5+colorcounter);
-                    %plot(sortedData(i).time,log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'MarkerSize',2);
-                    plot(sortedData(i).time,sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',2);
+                    %plot(sortedData(i).(timeField),log(sortedData(i).OD_subtr)/log(2),'o','Color',currentColor,'MarkerSize',2);
+                    plot(sortedData(i).(timeField),sortedData(i).OD_subtr,'o','Color',currentColor,'MarkerSize',2);
                 end
                 
                     
@@ -669,13 +669,13 @@ for nameidx=1:length(wellNames)    %blubb
                     xlimfit(1)=min(xlimfit(1),fitTimeext(1)*0.8); xlimfit(2)=max(xlimfit(2),fitTimeext(end)*1.05);
                     ylimfit(1)=min(ylimfit(1),ODcalc(1))*0.8; ylimfit(2)=max(ylimfit(2),ODcalc(end)*1.05);
                 else 
-                    xlimfit=[sortedData(i).time(1), sortedData(i).time(end)];
+                    xlimfit=[sortedData(i).(timeField)(1), sortedData(i).(timeField)(end)];
                     ylimfit(1)=0;
                     ylimfit(2)=max(sortedData(i).OD_subtr*1.05);
                     
                 end
                 if (xlimfit(1)>xlimfit(2)) & ylimfit(1)>ylimfit(2)
-                    xlimfit=[min(sortedData(i).time) max(sortedData(i).time)];
+                    xlimfit=[min(sortedData(i).(timeField)) max(sortedData(i).(timeField))];
                     ylimfit=[min(sortedData(i).OD_subtr) max(sortedData(i).OD_subtr)]; 
                 end
                 xlim([xlimfit(1) xlimfit(2)+1]);  %blubb
@@ -722,7 +722,7 @@ for nameidx=1:length(wellNames)    %blubb
         saveas(h,[figFullName '.fig'], 'fig');
         saveas(h,[figFullName '.png'], 'png');
         %save also image with full axis range
-        xlim([sortedData(1).time(1) sortedData(1).time(end)]);
+        xlim([sortedData(1).(timeField)(1) sortedData(1).(timeField)(end)]);
         %ylim([log(0.01)/log(2) log(ylimMaxDescriptionPos)/log(2)]);
         ylim([0 ylimMaxDescriptionPos]);
         figFullName=[myPlotsSaveDirLogODsub currentdate 'Full_GrowthCurves_' name '_automaticFitTime'];
