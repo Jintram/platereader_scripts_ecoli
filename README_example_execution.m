@@ -32,8 +32,7 @@ USERSETTINGS.datafile='2015_07_02_CRPcAMP_plasmids_repeat3_FULL.xls';
 USERSETTINGS.customSuffix = '_GFP';
 USERSETTINGS.ODorFluor = 2;
 
-
-USERSETTINGS.fitManual = 0;
+USERSETTINGS.fitManual = 0; % for fluor: only if you want to REDO the manual range based on fluor
 
 TIMEINDEXES=[5], ODINDEXES   = [6]
 

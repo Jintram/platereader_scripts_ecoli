@@ -392,8 +392,9 @@ end
 fclose(fid);
 
 % Output above table also to Excel file
-if USERSETTINGS.useSmooth smoothyesnow='SMOOTHED'; else smoothyesnow=''; end
-filename = [myFullDir currentdate 'FittedGrowthRateData_' smoothyesnow 'ODrange' num2str(USERSETTINGS.ODmin) '_' num2str(USERSETTINGS.ODmax) '.xlsx'];
+if USERSETTINGS.useSmooth smoothyesnow='SMOOTHED_'; else smoothyesnow=''; end
+if USERSETTINGS.fitManual manualyesno='inclManual_'; else manualyesno=''; end
+filename = [myFullDir currentdate 'FittedGrowthRateData_' smoothyesnow manualyesno 'ODrange' num2str(USERSETTINGS.ODmin) '_' num2str(USERSETTINGS.ODmax) '.xlsx'];
 %disp(['Saving ' filename]);
 %myPlateauTable=table(wellNames,myPlateauValues'; 
 % Sheet w. averages and stds mu

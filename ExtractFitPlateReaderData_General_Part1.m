@@ -13,6 +13,7 @@
 % ExtractFitPlateReaderData_General_Part2_OD.m or 
 % ExtractFitPlateReaderData_General_Part2_Fluorescence.m).
 % See README_example_execution.m for an example how to run part 1 and 2.
+% Note that part 1 needs to be executed both for OD and Fluor.
 % 
 % 
 %
@@ -563,6 +564,8 @@ title(['Plateau values determined from ' num2str(PLATEAUSTART) '-1.00 interval']
 set(gca, 'XTick', [1:length(wellNames)]);
 set(gca, 'XTickLabel', wellNames);
 
+MW_makeplotlookbetter(15);
+
 % save with (moving) averages on linear scale
 figFullName=[myJustPlotDir currentdate 'plateauvalues' ];
 saveas(h,[figFullName '.fig'], 'fig');
@@ -577,6 +580,18 @@ xlswrite(filename,myPlateauTable,'Plateauvalues','B2');
 clear dummy nameidx name muAccum muManualAccum
 clear xlimfit ylimfit colorcounter mylegendText g h fitTimeManualext ODcalcManual  ODcalc
 clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODminline
+
+%% horizontal bar plot
+% Save estimates of plateau values
+h = figure();
+barh(myPlateauValues);
+xlabel('Strain/medium');
+ylabel([yField ' value']);
+title(['Plateau values determined from ' num2str(PLATEAUSTART) '-1.00 interval'])
+set(gca, 'YTick', [1:length(wellNames)]);
+set(gca, 'YTickLabel', wellNames);
+
+MW_makeplotlookbetter(15);
 
 %% (3b)
 % ************************************************ 
