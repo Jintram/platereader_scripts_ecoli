@@ -40,6 +40,10 @@
 %       sets column indices which are regarded as OD measurements. 
 %       parameter needs to be altered when e.g. one of measurements is GFP.
 % - There are also some hard-coded parameters, see first section below.
+% - USERSETTINGS.fitManual
+%       important parameter, as when set to 1 it activates a part of the
+%       code that allows for manual selection of growth rate fit ranges.
+%       can be 0 or 1.
 % REQUIRED FOR FLUO ANALYSIS ONLY:
 % - USERSETTINGS.wellNamesToPlot  
 %       cell with the names of which wells to plot
@@ -55,6 +59,45 @@
 %     growth rates
 % (- wellNames and membersOfGroup)
 % ************************************************
+%
+% =========================================================================
+% Example of how script can be executed:
+% ===
+% 
+% USERSETTINGS.myRootDir='U:\ZZ_EXPERIMENTAL_DATA\C_Platereader\';
+% USERSETTINGS.myDateDir='2015_11_23\';
+% USERSETTINGS.datafile= '2015_11_23_CRP_oldreader.xls';
+% USERSETTINGS.customSuffix = '_OD';
+% USERSETTINGS.ODorFluor = 1;
+% 
+% USERSETTINGS.ODmin=0.05;
+% USERSETTINGS.ODmax=0.10;
+% 
+% USERSETTINGS.fitManual = 0;
+% 
+% % Different for old platereader protocol!
+% TIMEINDEXES=[5,7,9], ODINDEXES   = [6,8, 10]
+% 
+% ExtractFitPlateReaderData_General_Part1
+% ExtractFitPlateReaderData_General_Part2_OD
+%   
+% % Repeat analysis to add GFP values.
+% 
+% USERSETTINGS.customSuffix = '_GFP';
+% USERSETTINGS.ODorFluor = 2;
+% USERSETTINGS.platereader = 'OLD';
+% 
+% % for fluor: only if you want to REDO the manual range based on fluor
+% USERSETTINGS.fitManual = 0; 
+% 
+% % Different for old platereader protocol!
+% TIMEINDEXES=[11], ODINDEXES   = [12] 
+% 
+% ExtractFitPlateReaderData_General_Part1
+% ExtractFitPlateReaderData_General_Part2_Fluor
+% % ExtractFitPlateReaderData_General_Part3_Plotting.m
+% %========================================================================
+%
 %
 %
 % Some additional notes (MW):
