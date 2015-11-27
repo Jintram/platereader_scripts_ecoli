@@ -14,6 +14,9 @@
 % ExtractFitPlateReaderData_General_Part2_Fluorescence.m).
 % See README_example_execution.m for an example how to run part 1 and 2.
 % Note that part 1 needs to be executed both for OD and Fluor.
+% For fluor, plotting can be done from 
+% ExtractFitPlateReaderData_General_Part3_Plotting (this is automatically
+% called from part 2 fluor).
 % 
 % 
 %
@@ -127,9 +130,8 @@ SHOW_FIG_FITMANUAL = 0; % This is rather unused
 if ~exist('TIMEINDEXES'), TIMEINDEXES = [5, 7,  9, 11]; end
 if ~exist('ODINDEXES'), ODINDEXES   = [6, 8, 10, 12]; end
 
-
-%% Creating parameters, directories & loading data
-% ===
+% Creating parameters, directories 
+% -------------------------------------------------------------------------
 
 % Create correct field names depending OD or fluor measurement
 if USERSETTINGS.ODorFluor==1
@@ -155,6 +157,16 @@ currentdate=date();
 % Depends on data but needed for general functioning script
 load(['myColor.mat'],'myColor'); % load MW colors
 
+% Create subsave dir if doesn't exist.
+%name for subSaveDirectory for categorie plots
+myJustPlotDir=[myPlotsSaveDir MYCATEGORIEPLOTDIRNAME];
+if exist(myJustPlotDir)~=7
+  [status,msg,id] = mymkdir([myJustPlotDir]);
+  if status == 0
+    disp(['Warning: unable to mkdir ' myJustPlotDir ' : ' msg]);
+    return;
+  end
+end
 
 % Some additional wells to be ignored aside from those marked with 
 % realData=0.
@@ -169,7 +181,7 @@ availableMarkerSpecifiers = {'+','o','*','.','x','s','d','^','v','>','<','p','h'
 % import data. names: 'data' 'textdata'. create saveDirectory
 % ************************************************
 
-% Load the data itself
+%% Load the data itself
 %[data textdata]=xlsread([myFullDir, datafile]);
 % More extended version to allow for long measurement files 
 % (These are spread over multiple sheets by the platereader software. A
@@ -373,37 +385,65 @@ close all;
 % all blank data is averaged (over all positions, but individually for each
 % time point)
 if USERSETTINGS.showBlankFig
-    figure
-    clf
+    figure(1); clf; hold on;
     title('time trace blanks')
-    hold on
     xlabel('time [h]')
     ylabel('OD 600nm')
 end
 [blank_row,blank_col]=find(strcmp(DescriptionPlateCoordinates,'blank')==1); %find all blank positions
 numBlanks=length(blank_row); % number of blanks
 avBlankPerTime=zeros(size(sortedData,1),1);
-avPerBlank = []; stdPerBlank = []; % MW
+avPerBlank = []; stdPerBlank = []; plateauPerBlank = []; plateauStdPerBlank = [];% MW
 for i=1:numBlanks
     wellName=PositionNames(blank_row(i),blank_col(i)); % e.g. 'A1'
     idx=find(strcmp(wellCoordinates,wellName)==1); % which entry in sortedData corresponds to wellName
     avBlankPerTime=avBlankPerTime+sortedData(idx).(yField);
     if USERSETTINGS.showBlankFig
-        plot(sortedData(idx).(timeField),sortedData(idx).(yField),'x','Color', 0.8*i/numBlanks*[1 1 1])
+        % dataseries of this blank sample
+        plot(sortedData(idx).(timeField),sortedData(idx).(yField),'x','Color', 0.8*i/numBlanks*[1 1 1],'LineWidth',2)
+        blankmaxvalues(i)=max(sortedData(idx).(yField));
+        blanknames{i}=char(wellName);
     end
     % determine avg and std per blank
     avPerBlank = [avPerBlank mean(sortedData(idx).(yField))]; % MW
     stdPerBlank = [stdPerBlank std(sortedData(idx).(yField))]; % MW
+    plateauPerBlank = [plateauPerBlank mean(sortedData(idx).(yField)(end-10:end))];
+    plateauStdPerBlank = [plateauStdPerBlank std(sortedData(idx).(yField)(end-10:end))];
 end
+blankmaxvalues, blanknames
 avBlankPerTime=avBlankPerTime/numBlanks;
 if USERSETTINGS.showBlankFig
         % plot averages per timepoint
-        plot(sortedData(1).(timeField),avBlankPerTime,'or','LineWidth',1)
+        plot(sortedData(1).(timeField),avBlankPerTime,'or','LineWidth',2)
+        
+        MW_makeplotlookbetter(15);
+        saveas(gcf,[myJustPlotDir currentdate '_blanksraw.png'], 'png');
+        saveas(gcf,[myJustPlotDir currentdate '_blanksraw.eps'], 'epsc');
+    
         % plot averages per blank
-        figure
-        errorbar(avPerBlank,stdPerBlank) % MW
+        figure(2)
+        [h,hErrorbar]= barwitherr(stdPerBlank,avPerBlank,'LineWidth',1,'FaceColor',[.7 .7 .7]); % MW
+        set(hErrorbar, 'LineWidth', 3) %MW added
+        %errorbar(avPerBlank,stdPerBlank,'LineWidth',2) % MW
         axis([.5 numBlanks+.5 min(0-stdPerBlank) max(avPerBlank+stdPerBlank)*1.1])
         title('averages per blank'); xlabel('blank #'); ylabel('OD (600)')
+        set(gca, 'XTickLabel',blanknames, 'XTick',1:numel(avPerBlank));
+        MW_makeplotlookbetter(15);
+        saveas(gcf,[myJustPlotDir currentdate '_blanksmean.png'], 'png');
+        saveas(gcf,[myJustPlotDir currentdate '_blanksmean.eps'], 'epsc');
+        
+        % plot plateaus per blank
+        figure(3)
+        [h,hErrorbar]= barwitherr(plateauStdPerBlank,plateauPerBlank,'LineWidth',1,'FaceColor',[.7 .7 .7]); % MW
+        set(hErrorbar, 'LineWidth', 3) %MW added
+        %errorbar(avPerBlank,stdPerBlank,'LineWidth',2) % MW
+        axis([.5 numBlanks+.5 min(0-plateauStdPerBlank) max(plateauPerBlank+plateauStdPerBlank)*1.1])
+        title('plateau values per blank (avg last 10)'); xlabel('blank #'); ylabel('OD (600)')
+        set(gca, 'XTickLabel',blanknames, 'XTick',1:numel(avPerBlank));
+        MW_makeplotlookbetter(15);
+        saveas(gcf,[myJustPlotDir currentdate '_blanksplateau.png'], 'png');
+        saveas(gcf,[myJustPlotDir currentdate '_blanksplateau.eps'], 'epsc');
+        plateauPerBlank
 end
 totalAvBlank=mean(avBlankPerTime); % maybe use complete average instead of av per time point. Todo
 
@@ -412,7 +452,8 @@ totalAvBlank=mean(avBlankPerTime); % maybe use complete average instead of av pe
 for i=1:length(sortedData)
     sortedData(i).(yField_subtr) = sortedData(i).(yField)-avBlankPerTime;
 end
-clear blank_row blank_col numBlanks i idx wellName
+
+%clear blank_row blank_col numBlanks i idx wellName
 
 %% (3)
 % ************************************************ 
@@ -422,18 +463,6 @@ clear blank_row blank_col numBlanks i idx wellName
 % Output vars
 myPlateauValues     = [];
 myPlateauValues_std = [];
-
-% Create subsave dir if doesn't exist.
-
-%name for subSaveDirectory for categorie plots
-myJustPlotDir=[myPlotsSaveDir MYCATEGORIEPLOTDIRNAME];
-if exist(myJustPlotDir)~=7
-  [status,msg,id] = mymkdir([myJustPlotDir]);
-  if status == 0
-    disp(['Warning: unable to mkdir ' myJustPlotDir ' : ' msg]);
-    return;
-  end
-end
 
 % -----------------------------------------------
 %loop over different groups in well (wellNames)
@@ -520,10 +549,12 @@ for nameidx=1:length(wellNames)
     figFullName=[myJustPlotDir currentdate 'GrowthCurves_' name];
     saveas(h,[figFullName '.fig'], 'fig');
     saveas(h,[figFullName '.png'], 'png');
+    saveas(h,[figFullName '.eps'], 'epsc');
     % save with (moving) averages on log scale
     figFullName=[myJustPlotDir currentdate 'log_GrowthCurves_' name];
     saveas(hlog,[figFullName '.fig'], 'fig');
     saveas(hlog,[figFullName '.png'], 'png');
+    saveas(hlog,[figFullName '.eps'], 'epsc');
 
     % close figures
     close(h); close(hlog);
