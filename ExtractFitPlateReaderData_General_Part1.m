@@ -1,6 +1,8 @@
 % THIS IS A SCRIPT TO EXTRACT DATA FROM A EXCEL FILE THAT CONTAINS GROWTH
 % MEASUREMENTS FROM THE PLATE READER (VICTOR)
 % DATA IS FITTED WITH EXPONENTIAL
+% ===
+% Written by Noreen Walker and Martijn Wehrens.
 %
 % Note: file can be used for measurements >24h without alterations (.xls
 % file contains intrinsically information that time is >24h)
@@ -12,12 +14,12 @@
 % finish the analysis (either 
 % ExtractFitPlateReaderData_General_Part2_OD.m or 
 % ExtractFitPlateReaderData_General_Part2_Fluorescence.m).
+%
 % See README_example_execution.m for an example how to run part 1 and 2.
 % Note that part 1 needs to be executed both for OD and Fluor.
 % For fluor, plotting can be done from 
 % ExtractFitPlateReaderData_General_Part3_Plotting (this is automatically
 % called from part 2 fluor).
-% 
 % 
 %
 % ************************************************
@@ -60,47 +62,8 @@
 % (- wellNames and membersOfGroup)
 % ************************************************
 %
-% =========================================================================
-% Example of how script can be executed:
-% ===
-% 
-% USERSETTINGS.myRootDir='U:\ZZ_EXPERIMENTAL_DATA\C_Platereader\';
-% USERSETTINGS.myDateDir='2015_11_23\';
-% USERSETTINGS.datafile= '2015_11_23_CRP_oldreader.xls';
-% USERSETTINGS.customSuffix = '_OD';
-% USERSETTINGS.ODorFluor = 1;
-% 
-% USERSETTINGS.ODmin=0.05;
-% USERSETTINGS.ODmax=0.10;
-% 
-% USERSETTINGS.fitManual = 0;
-% 
-% % Different for old platereader protocol!
-% TIMEINDEXES=[5,7,9], ODINDEXES   = [6,8, 10]
-% 
-% ExtractFitPlateReaderData_General_Part1
-% ExtractFitPlateReaderData_General_Part2_OD
-%   
-% % Repeat analysis to add GFP values.
-% 
-% USERSETTINGS.customSuffix = '_GFP';
-% USERSETTINGS.ODorFluor = 2;
-% USERSETTINGS.platereader = 'OLD';
-% 
-% % for fluor: only if you want to REDO the manual range based on fluor
-% USERSETTINGS.fitManual = 0; 
-% 
-% % Different for old platereader protocol!
-% TIMEINDEXES=[11], ODINDEXES   = [12] 
-% 
-% ExtractFitPlateReaderData_General_Part1
-% ExtractFitPlateReaderData_General_Part2_Fluor
-% % ExtractFitPlateReaderData_General_Part3_Plotting.m
-% %========================================================================
 %
-%
-%
-% Some additional notes (MW):
+% Some additional notes:
 % - "Smoothing" and "moving average" are used as synonyms here.
 %
 %
