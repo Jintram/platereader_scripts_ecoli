@@ -29,14 +29,17 @@ end
 
 %%
 
+% THIS PARAMETER MIGHT NEED TO BE SET DEPENDING ON THE PROTOCOL USED
 % define function to extrapolate which ODfields belong to a certain fluor 
 % time.
-if strcmp(USERSETTINGS.platereader,'new')
-    disp('Using new reader OD/fluor index conversion');
+if strcmp(lower(USERSETTINGS.platereader),'new')
+    disp('Using preset new reader protocol OD/fluor index conversion');
     fnODINDEXTOFLUORINDEX = @(i) (i-1)*3+1+[-1 1];
-elseif strcmp(USERSETTINGS.platereader,'old')
-    disp('Using old reader OD/fluor index conversion');
+elseif strcmp(lower(USERSETTINGS.platereader),'old')
+    disp('Using preset old reader protocol OD/fluor index conversion');
     fnODINDEXTOFLUORINDEX = @(i) (i)*3;
+else
+    error('No platereader defined (USERSETTINGS.platereader ~= ''old''/''new'')..');
 end
 
 
