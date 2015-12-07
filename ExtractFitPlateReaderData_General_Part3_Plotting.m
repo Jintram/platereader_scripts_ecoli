@@ -175,6 +175,7 @@ if isfield(USERSETTINGS, 'wellNamesToPlot')
         % Now plot (in same plot; overlay) idem, but only within timewindow
         muValues = [];
         manualMuValues = [];
+        fitTimes = [];
         loopcount = 1;
         for j = toPlot                        
             % store data for later usage
@@ -182,13 +183,16 @@ if isfield(USERSETTINGS, 'wellNamesToPlot')
             if manualDetermined
                 manualMuValues(end+1)   = sortedData(j).muManual;
             end
+            fitTimes = [fitTimes; sortedData(j).fitTime];
         end                
         
         % create summary var
         output(i).muValues = muValues;
         if manualDetermined
             output(i).manualMuValues = manualMuValues;            
-        end
+        end 
+        % also store fitTime
+        output(i).fitTimes = fitTimes; 
         
     end
 
