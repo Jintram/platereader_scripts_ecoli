@@ -1,7 +1,7 @@
 % Example how to execute script.
 
 % This example applies to a combined OD and fluor measurement, therefor
-% TIMEINDEXES and ODINDEXES are set to non-default values, which correspond
+% TIMEINDEXES and YINDEXES are set to non-default values, which correspond
 % to the OD fields.
 %
 
@@ -24,8 +24,16 @@ USERSETTINGS.ODmax=0.10;
 
 USERSETTINGS.fitManual = 0;
 
+% From which column to get values, ATTENTION! This changes for old/new
+% platereader.
+% All columns with data, either OD or fluor:   
+%    TIMEINDEXES=[5,7,9,11], YINDEXES   = [6,8,10,12]
+% One of them is fluor usually, three others OD.
+%    TIMEINDEXES=[7,9,11], YINDEXES   = [8,10,12] % new reader
+%    TIMEINDEXES=[5,7,9], YINDEXES   = [6,8, 10] % old
+% reader
 % Different for old platereader protocol!
-TIMEINDEXES=[5,7,9], ODINDEXES   = [6,8, 10] % values for old reader (open excel file w. data to check)
+TIMEINDEXES=[7,9,11], YINDEXES   = [8,10,12] % values for old reader (open excel file w. data to check)
 
 ExtractFitPlateReaderData_General_Part1
 ExtractFitPlateReaderData_General_Part2_OD
@@ -40,7 +48,8 @@ USERSETTINGS.platereader = 'OLD';
 USERSETTINGS.fitManual = 0; 
 
 % Different for old platereader protocol!
-TIMEINDEXES=[11], ODINDEXES   = [12] 
+TIMEINDEXES=[5], YINDEXES   = [6] % new platereader
+%TIMEINDEXES=[11], YINDEXES   = [12] % old platereader
 
 ExtractFitPlateReaderData_General_Part1
 ExtractFitPlateReaderData_General_Part2_Fluor

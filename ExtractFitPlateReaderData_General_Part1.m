@@ -37,7 +37,7 @@
 %       optional parameter for special case;
 %       sets column indices which are regarded as time measurements. 
 %       parameter needs to be altered when e.g. one of measurements is GFP.
-% - ODINDEXES
+% - YINDEXES
 %       optional parameter for special case;
 %       sets column indices which are regarded as OD measurements. 
 %       parameter needs to be altered when e.g. one of measurements is GFP.
@@ -129,12 +129,12 @@ SHOW_FIG_FITMANUAL = 0; % This is rather unused
                   
 % Some parameters for special cases
 % If default measurement was used, default values can be used for 
-% TIMEINDEXES and ODINDEXES, but when e.g. platereader also measured GFP
+% TIMEINDEXES and YINDEXES, but when e.g. platereader also measured GFP
 % signal, then the values might be in different fields.
 % E.g., code for 1st measurement being fluor:
-%{ TIMEINDEXES=[7,9,11], ODINDEXES   = [8, 10, 12] %}
+%{ TIMEINDEXES=[7,9,11], YINDEXES   = [8, 10, 12] %}
 if ~exist('TIMEINDEXES'), TIMEINDEXES = [5, 7,  9, 11]; end
-if ~exist('ODINDEXES'), ODINDEXES   = [6, 8, 10, 12]; end
+if ~exist('YINDEXES'), YINDEXES   = [6, 8, 10, 12]; end
 
 % Creating parameters, directories 
 % -------------------------------------------------------------------------
@@ -314,7 +314,7 @@ for i=1:length(sortedData)
     currentTimes=[]; currentYvalues=[];
     for j = 1:numel(TIMEINDEXES)
         currentTimes = [currentTimes; data(idx,TIMEINDEXES(j))]; 
-        currentYvalues = [currentYvalues; data(idx,ODINDEXES(j))];
+        currentYvalues = [currentYvalues; data(idx,YINDEXES(j))];
         
     end
     currentTimesAndODs=[currentTimes(:), currentYvalues(:)]; %time
