@@ -43,11 +43,17 @@ if ~exist('myJustPlotDir','var')
     end
 end
 
-%% Now plot
+if ~isfield(USERSETTINGS,'plotManualFits')
+    error('USERSETTINGS.plotManualFits not set..');
+end
+
+%% Now plot mean fluor values (and underlying data)
+%
 % Things that can be adjusted change before calling script
 % TIMEFIELD
 % YFIELD
 % RANGEFIELD
+
 if ~exist ('TIMEFIELD','var'), TIMEFIELD = 'timeFluor'; end
 if ~exist ('YFIELD','var'), YFIELD = 'fluorDivOD'; end
 if ~exist ('RANGEFIELD','var'), RANGEFIELD = 'fitRangeFluor'; end
@@ -112,7 +118,9 @@ if isfield(USERSETTINGS, 'wellNamesToPlot')
 
     % Go back per figure and set y max
     for i = 1:numel(USERSETTINGS.wellNamesToPlot)
-        figure(i), ylim([0, max([output.meanFluor])*1.1]);
+        if ~(max([output.meanFluor])*1.1<0)
+            figure(i), ylim([0, max([output.meanFluor])*1.1]);
+        end
     end
     
     % make errorbar plot
@@ -159,10 +167,13 @@ sortedData.fluorNormalized = ...
 %}
 
 %% Create a plot with determined growth rates
+%
+
 if isfield(USERSETTINGS, 'wellNamesToPlot')
 
-    manualDetermined = USERSETTINGS.fitManual;    
+    manualDetermined = USERSETTINGS.plotManualFits;    
     
+    % loop over wellnames to plot
     for i = 1:numel(USERSETTINGS.wellNamesToPlot)
 
         % current well to plot
@@ -177,8 +188,11 @@ if isfield(USERSETTINGS, 'wellNamesToPlot')
         manualMuValues = [];
         fitTimes = [];
         loopcount = 1;
-        for j = toPlot                        
+        for j = toPlot
             % store data for later usage
+            % save empty (non-determined) value as NaN
+            if isempty(sortedData(j).mu), sortedData(j).mu = NaN; end
+            % save
             muValues(end+1)         = sortedData(j).mu;
             if manualDetermined
                 manualMuValues(end+1)   = sortedData(j).muManual;
@@ -186,14 +200,27 @@ if isfield(USERSETTINGS, 'wellNamesToPlot')
             fitTimes = [fitTimes; sortedData(j).fitTime];
         end                
         
-        % create summary var
+        % create output var
         output(i).muValues = muValues;
         if manualDetermined
             output(i).manualMuValues = manualMuValues;            
-        end 
+        end
+        
+        % add summary vars
+        output(i).muValuesMean = mean(muValues);
+        output(i).muValuesStd = std(muValues);
+        if manualDetermined
+            output(i).manualMuValuesMean = mean(manualMuValues);
+            output(i).manualMuValuesStd = std(manualMuValues);
+        end         
+        
         % also store fitTime
         output(i).fitTimes = fitTimes; 
         
+        % also store plateau values
+        output(i).plateauValuesMean = myPlateauValues(plotGroupIdx);
+        output(i).plateauValuesStd  = myPlateauValues_std(plotGroupIdx);
+                
     end
 
 
@@ -293,3 +320,5 @@ saveas(gcf,[myJustPlotDir 'groupedfluordistr' USERSETTINGS.wellNamesToPlot{1} 'e
 saveas(gcf,[myJustPlotDir 'groupedfluordistr' USERSETTINGS.wellNamesToPlot{1} 'etc.eps'],'epsc')
 
 end
+
+

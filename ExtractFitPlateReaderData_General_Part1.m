@@ -300,7 +300,7 @@ for i=1:length(wellCoordinates)
         sortedData(i).mu=[];
         sortedData(i).x0=[];
         sortedData(i).movingAverage=[];
-        sortedData(i).rangeMovingAverage=[];
+        sortedData(i).rangeMovingAverage=[];        
     end
 end
 
@@ -313,7 +313,7 @@ for i=1:length(sortedData)
     % Collect data for this well for processing
     currentTimes=[]; currentYvalues=[];
     for j = 1:numel(TIMEINDEXES)
-        currentTimes = [currentTimes; data(idx,TIMEINDEXES(j))]; 
+        currentTimes   = [currentTimes; data(idx,TIMEINDEXES(j))]; 
         currentYvalues = [currentYvalues; data(idx,YINDEXES(j))];
         
     end

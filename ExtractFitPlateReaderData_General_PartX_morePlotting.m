@@ -6,7 +6,7 @@
 % For the used fluor measurement script, the parameters below should be OK.
 
 
-%% Plot some more
+%% Plot some more: mean fluor values
 
 if isfield(USERSETTINGS, 'wellNamesToPlot')
 

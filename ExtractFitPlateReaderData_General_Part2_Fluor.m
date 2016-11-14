@@ -94,8 +94,7 @@ end
 %% Save this data
 if ~exist('DONTSAVE','var')
     myFilePath = [myFullDir currentdate 'CompleteAnalyzedData' USERSETTINGS.customSuffix '.mat'];
-    save(myFilePath,'sortedData','muAvStdev','membersOfGroup','wellNames',...
-        'windowSize','PLATEAUSTART','SUMMARYPLOTDIRNAME', 'MYCATEGORIEPLOTDIRNAME');
+    save(myFilePath);
     disp(['Saved data in: ' 10 myFilePath]);
 end
 
