@@ -380,14 +380,14 @@ end
 fid = fopen([myFullDir 'FittedGrowthRateData_ODrange' num2str(USERSETTINGS.ODmin) '_' num2str(USERSETTINGS.ODmax) '.txt'],'wt');
 % function from Daan
 disp(['  ']); disp(['   '])
-disp(fid, ['--------------------------------------------------------------']);
-disp(fid, ['Averages Of Fitted Growth Rates']);
-disp(fid, ['--------------------------------------------------------------']);
-disp(fid,['                 mu      stdev(mu)  #repetitions      muManual  stdev(muManual)  #repetitions(Manual)']);
+dispAndWrite(fid, ['--------------------------------------------------------------']);
+dispAndWrite(fid, ['Averages Of Fitted Growth Rates']);
+dispAndWrite(fid, ['--------------------------------------------------------------']);
+dispAndWrite(fid,['                 mu      stdev(mu)  #repetitions      muManual  stdev(muManual)  #repetitions(Manual)']);
 for i=1:size(muAvStdev,1)
     str = sprintf('%10s     %1.4f     %1.4f        %1.0f              %1.4f        %1.4f         %1.0f', ...
         char(wellNames(i)), muAvStdev(i,1), muAvStdev(i,2), muAvStdev(i,3), muAvStdev(i,4), muAvStdev(i,5), muAvStdev(i,6));
-    disp(fid,str);
+    dispAndWrite(fid,str);
 end
 fclose(fid);
 
