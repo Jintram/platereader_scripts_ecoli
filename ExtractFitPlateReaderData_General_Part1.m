@@ -144,7 +144,7 @@ if ~exist('YINDEXES'), YINDEXES   = [6, 8, 10]; end
 % Create correct field names depending OD or fluor measurement
 if USERSETTINGS.ODorFluor==1
     timeField    = 'timeOD';
-    yField       = 'OD';
+    yField       = 'OD600';
     yField_subtr = 'OD_subtr';    
 elseif USERSETTINGS.ODorFluor==2
     timeField    = 'timeFluor';
@@ -499,7 +499,7 @@ for nameidx=1:length(wellNames)
     clf
     title([name ' ' yField ' values over time'])
     hold on
-    xlabel('time [h]')
+    xlabel('time [hrs]')
     ylabel(yField)      
     if USERSETTINGS.hideGraphs
         set(h,'Visible','off'); % TODO MW - doesn't work
@@ -510,7 +510,7 @@ for nameidx=1:length(wellNames)
     set(gca, 'Yscale', 'log')
     title(['log ' name ' ' yField ' values over time'])
     hold on
-    xlabel('time [h]')
+    xlabel('time [hrs]')
     ylabel(yField)        
     % hide plots if desired  
     if USERSETTINGS.hideGraphs
@@ -668,7 +668,7 @@ h=figure(1);
 clf
 title([' OD values over time'])
 hold on
-xlabel('time [h]')
+xlabel('time [hrs]')
 ylabel(yField)      
 if USERSETTINGS.hideGraphs
     set(h,'Visible','off'); % TODO MW - doesn't work
@@ -679,7 +679,7 @@ clf
 set(gca, 'Yscale', 'log')
 title(['log OD values over time'])
 hold on
-xlabel('time [h]')
+xlabel('time [hrs]')
 ylabel(yField)        
 % hide plots if desired  
 if USERSETTINGS.hideGraphs
