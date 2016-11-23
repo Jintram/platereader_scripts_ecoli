@@ -79,9 +79,9 @@ if ~exist('USERSETTINGS')
     disp('WARNING: No usersettings found! Please give USERSETTINGS. Now using USERSETTINGS stored in script.')
     disp('See comments for more information.');
     
-    USERSETTINGS.myRootDir='T:\TRAVELING_DATA\00_PLATEREADER\';
-    USERSETTINGS.myDateDir='2015-06-19\';
-    USERSETTINGS.datafile='2015_06_19_CRPcAMP_plasmids_repeat.xls';
+    USERSETTINGS.myRootDir='X:\Plate Reader\Clone\';
+    USERSETTINGS.myDateDir='20161118\';
+    USERSETTINGS.datafile='20161118.xls';
 end
 if ~isfield(USERSETTINGS, 'showBlankFig')
     USERSETTINGS.showBlankFig=1;
@@ -93,8 +93,8 @@ if ~isfield(USERSETTINGS, 'hideGraphs')
 end
 if ~isfield(USERSETTINGS, 'ODmin')
     USERSETTINGS.ODmin=0.05; 
-    USERSETTINGS.ODmax=0.22;
-    disp('USERSETTINGS.ODmin and ODmax set to defualts');
+    USERSETTINGS.ODmax=0.10;
+    disp('USERSETTINGS.ODmin and ODmax set to defaults');
 end
 if ~isfield(USERSETTINGS, 'useSmooth')
     % Set whether data should be smoothed first (i.e. whether moving avg should
@@ -105,11 +105,11 @@ if ~isfield(USERSETTINGS, 'showBigFit')
     USERSETTINGS.showBigFit=1; % Default 1 - MW
 end
 if ~isfield(USERSETTINGS, 'fitManual');
-    USERSETTINGS.fitManual = 0;
+    USERSETTINGS.fitManual = 1;
     disp('USERSETTINGS.fitManual set to default, 0');
 end
 if ~isfield(USERSETTINGS, 'customSuffix')
-    USERSETTINGS.customSuffix='';
+    USERSETTINGS.customSuffix='_OD';
 end
 if ~isfield(USERSETTINGS, 'ODorFluor')
     USERSETTINGS.ODorFluor=1; % 1 = OD, 2 = Fluor
@@ -126,15 +126,17 @@ SUMMARYPLOTDIRNAME     = ['Summaryplots\'];
 MYCATEGORIEPLOTDIRNAME = ['categoriePlots\'];
 
 SHOW_FIG_FITMANUAL = 0; % This is rather unused
-                  
+   
+FONTSIZE=15;
+
 % Some parameters for special cases
 % If default measurement was used, default values can be used for 
 % TIMEINDEXES and YINDEXES, but when e.g. platereader also measured GFP
 % signal, then the values might be in different fields.
 % E.g., code for 1st measurement being fluor:
 %{ TIMEINDEXES=[7,9,11], YINDEXES   = [8, 10, 12] %}
-if ~exist('TIMEINDEXES'), TIMEINDEXES = [5, 7,  9, 11]; end
-if ~exist('YINDEXES'), YINDEXES   = [6, 8, 10, 12]; end
+if ~exist('TIMEINDEXES'), TIMEINDEXES = [5, 7, 9]; end
+if ~exist('YINDEXES'), YINDEXES   = [6, 8, 10]; end
 
 % Creating parameters, directories 
 % -------------------------------------------------------------------------
@@ -167,7 +169,7 @@ load(['myColor.mat'],'myColor'); % load MW colors
 %name for subSaveDirectory for categorie plots
 myJustPlotDir=[myPlotsSaveDir MYCATEGORIEPLOTDIRNAME];
 if exist(myJustPlotDir)~=7
-  [status,msg,id] = mymkdir([myJustPlotDir]);
+  [status,msg,id] = mkdir([myJustPlotDir]);
   if status == 0
     disp(['Warning: unable to mkdir ' myJustPlotDir ' : ' msg]);
     return;
@@ -225,7 +227,7 @@ end
 load(['PositionNames.mat']); % cell array with 'A1' 'B1' etc
 %
 % nb: the timefield is now in IEEE format and can be converted into minutes
-% by DJK_getMinutesfromTimestamp(timeIeee). Timefield will be converted to
+% by getMinutesFromTimestamp(timeIeee). Timefield will be converted to
 % hours further below
 
 mainscriptsettingran=1; % Flag for other scripts
@@ -322,7 +324,7 @@ for i=1:length(sortedData)
     % bring into right order (strange original excel format)
     currentTimesAndODs=sortrows(currentTimesAndODs,1);
     % convert time to hours
-    currentTimesAndODs(:,1)=DJK_getMinutesFromTimestamp(currentTimesAndODs(:,1))/60;    
+    currentTimesAndODs(:,1)=getMinutesFromTimestamp(currentTimesAndODs(:,1))/60;    
     
     % Put dummy var into sortedData structure
     sortedData(i).(timeField)=currentTimesAndODs(:,1);
@@ -370,7 +372,7 @@ end
 %----------------------------------------------------------
 %create save directory
 if exist(myPlotsSaveDir)~=7
-  [status,msg,id] = mymkdir([myPlotsSaveDir]);
+  [status,msg,id] = mkdir([myPlotsSaveDir]);
   if status == 0
     disp(['Warning: unable to mkdir ' myPlotssSaveDir ' : ' msg]);
     return;
@@ -421,8 +423,10 @@ avBlankPerTime=avBlankPerTime/numBlanks;
 if USERSETTINGS.showBlankFig
         % plot averages per timepoint
         plot(sortedData(1).(timeField),avBlankPerTime,'or','LineWidth',2)
+                
+        set(findall(gcf,'type','text'),'FontSize',FONTSIZE,'fontWeight','normal');
+        set(gca,'FontSize',FONTSIZE);
         
-        MW_makeplotlookbetter(15);
         saveas(gcf,[myJustPlotDir currentdate '_blanksraw.png'], 'png');
         saveas(gcf,[myJustPlotDir currentdate '_blanksraw.eps'], 'epsc');
     
@@ -434,7 +438,10 @@ if USERSETTINGS.showBlankFig
         axis([.5 numBlanks+.5 min(0-stdPerBlank) max(avPerBlank+stdPerBlank)*1.1])
         title('averages per blank'); xlabel('blank #'); ylabel('OD (600)')
         set(gca, 'XTickLabel',blanknames, 'XTick',1:numel(avPerBlank));
-        MW_makeplotlookbetter(15);
+        
+        set(findall(gcf,'type','text'),'FontSize',FONTSIZE,'fontWeight','normal');
+        set(gca,'FontSize',FONTSIZE);
+        
         saveas(gcf,[myJustPlotDir currentdate '_blanksmean.png'], 'png');
         saveas(gcf,[myJustPlotDir currentdate '_blanksmean.eps'], 'epsc');
         
@@ -446,7 +453,10 @@ if USERSETTINGS.showBlankFig
         axis([.5 numBlanks+.5 min(0-plateauStdPerBlank) max(plateauPerBlank+plateauStdPerBlank)*1.1])
         title('plateau values per blank (avg last 10)'); xlabel('blank #'); ylabel('OD (600)')
         set(gca, 'XTickLabel',blanknames, 'XTick',1:numel(avPerBlank));
-        MW_makeplotlookbetter(15);
+        
+        set(findall(gcf,'type','text'),'FontSize',FONTSIZE,'fontWeight','normal')
+        set(gca,'FontSize',FONTSIZE)
+        
         saveas(gcf,[myJustPlotDir currentdate '_blanksplateau.png'], 'png');
         saveas(gcf,[myJustPlotDir currentdate '_blanksplateau.eps'], 'epsc');
         plateauPerBlank
@@ -601,7 +611,8 @@ title(['Plateau values determined from ' num2str(PLATEAUSTART) '-1.00 interval']
 set(gca, 'XTick', [1:length(wellNames)]);
 set(gca, 'XTickLabel', wellNames);
 
-MW_makeplotlookbetter(15);
+set(findall(gcf,'type','text'),'FontSize',FONTSIZE,'fontWeight','normal');
+set(gca,'FontSize',FONTSIZE);
 
 % save with (moving) averages on linear scale
 figFullName=[myJustPlotDir currentdate 'plateauvalues' ];
@@ -628,7 +639,8 @@ title(['Plateau values determined from ' num2str(PLATEAUSTART) '-1.00 interval']
 set(gca, 'YTick', [1:length(wellNames)]);
 set(gca, 'YTickLabel', wellNames);
 
-MW_makeplotlookbetter(15);
+set(findall(gcf,'type','text'),'FontSize',FONTSIZE,'fontWeight','normal');
+set(gca,'FontSize',FONTSIZE);
 
 %% (3b)
 % ************************************************ 
@@ -639,7 +651,7 @@ MW_makeplotlookbetter(15);
 %create subSaveDirectory for these plots
 myJustPlotDir=[myPlotsSaveDir SUMMARYPLOTDIRNAME];
 if exist(myJustPlotDir)~=7
-  [status,msg,id] = mymkdir([myJustPlotDir]);
+  [status,msg,id] = mkdir([myJustPlotDir]);
   if status == 0
     disp(['Warning: unable to mkdir ' myJustPlotDir ' : ' msg]);
     return;

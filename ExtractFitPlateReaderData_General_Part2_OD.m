@@ -12,7 +12,7 @@ end
 %create subSaveDirectory according to fit OD
 myPlotsSaveDirODsub=[myPlotsSaveDir 'ODmin'  num2str(USERSETTINGS.ODmin) 'ODmax' num2str(USERSETTINGS.ODmax) '\'];
 if exist(myPlotsSaveDirODsub)~=7
-  [status,msg,id] = mymkdir([myPlotsSaveDirODsub]);
+  [status,msg,id] = mkdir([myPlotsSaveDirODsub]);
   if status == 0
     disp(['Warning: unable to mkdir ' myPlotssSaveDirODsub ' : ' msg]);
     return;
@@ -380,14 +380,14 @@ end
 fid = fopen([myFullDir 'FittedGrowthRateData_ODrange' num2str(USERSETTINGS.ODmin) '_' num2str(USERSETTINGS.ODmax) '.txt'],'wt');
 % function from Daan
 disp(['  ']); disp(['   '])
-dispAndWrite(fid, ['--------------------------------------------------------------']);
-dispAndWrite(fid, ['Averages Of Fitted Growth Rates']);
-dispAndWrite(fid, ['--------------------------------------------------------------']);
-dispAndWrite(fid,['                 mu      stdev(mu)  #repetitions      muManual  stdev(muManual)  #repetitions(Manual)']);
+disp(fid, ['--------------------------------------------------------------']);
+disp(fid, ['Averages Of Fitted Growth Rates']);
+disp(fid, ['--------------------------------------------------------------']);
+disp(fid,['                 mu      stdev(mu)  #repetitions      muManual  stdev(muManual)  #repetitions(Manual)']);
 for i=1:size(muAvStdev,1)
     str = sprintf('%10s     %1.4f     %1.4f        %1.0f              %1.4f        %1.4f         %1.0f', ...
         char(wellNames(i)), muAvStdev(i,1), muAvStdev(i,2), muAvStdev(i,3), muAvStdev(i,4), muAvStdev(i,5), muAvStdev(i,6));
-    dispAndWrite(fid,str);
+    disp(fid,str);
 end
 fclose(fid);
 
@@ -547,7 +547,7 @@ if USERSETTINGS.fitManual
             %create save Directory for log images
             myPlotsSaveDirLogODsub=[myPlotsSaveDir 'LogPlot_manualRange\'];        
             if exist(myPlotsSaveDirLogODsub)~=7
-            [status,msg,id] = mymkdir([myPlotsSaveDirLogODsub]);
+            [status,msg,id] = mkdir([myPlotsSaveDirLogODsub]);
                 if status == 0
                     disp(['Warning: unable to mkdir ' myPlotssSaveDirLogODSub ' : ' msg]);
                     return;
@@ -711,7 +711,7 @@ for nameidx=1:length(wellNames)    %blubb
         %create save Directory for log images
         myPlotsSaveDirLogODsub=[myPlotsSaveDir 'LogPlot_ODmin'  num2str(USERSETTINGS.ODmin) 'ODmax' num2str(USERSETTINGS.ODmax) '\'];        
         if exist(myPlotsSaveDirLogODsub)~=7
-        [status,msg,id] = mymkdir([myPlotsSaveDirLogODsub]);
+        [status,msg,id] = mkdir([myPlotsSaveDirLogODsub]);
             if status == 0
                 disp(['Warning: unable to mkdir ' myPlotssSaveDirLogODSub ' : ' msg]);
                 return;
