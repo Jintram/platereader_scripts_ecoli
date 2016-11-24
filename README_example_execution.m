@@ -48,8 +48,8 @@ USERSETTINGS.platereader = 'OLD';
 USERSETTINGS.fitManual = 0; 
 
 % Different for old platereader protocol!
-TIMEINDEXES=[5], YINDEXES   = [6] % new platereader
-%TIMEINDEXES=[11], YINDEXES   = [12] % old platereader
+%TIMEINDEXES=[5], YINDEXES   = [6] % new platereader
+TIMEINDEXES=[11], YINDEXES   = [12] % old platereader
 
 ExtractFitPlateReaderData_General_Part1
 ExtractFitPlateReaderData_General_Part2_Fluor
