@@ -99,7 +99,7 @@ end
 if ~isfield(USERSETTINGS, 'useSmooth')
     % Set whether data should be smoothed first (i.e. whether moving avg should
     % be used as input).
-    USERSETTINGS.useSmooth = 1;
+    USERSETTINGS.useSmooth = 0;
 end
 if ~isfield(USERSETTINGS, 'showBigFit')
     USERSETTINGS.showBigFit=1; % Default 1 - MW
