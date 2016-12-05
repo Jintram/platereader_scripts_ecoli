@@ -49,6 +49,9 @@ end
 
 FONTSIZE=15;
 
+% Create output struct
+output = struct; 
+
 %% Create a plot with determined growth rates
 %
 
@@ -72,22 +75,31 @@ if isfield(USERSETTINGS, 'wellNamesToPlot')
         fitTimes = [];
         loopcount = 1;
         for j = toPlot
+            
             % store data for later usage
+            
             % save empty (non-determined) value as NaN
             if isempty(sortedData(j).mu), sortedData(j).mu = NaN; end
+            
             % save
             muValues(end+1)         = sortedData(j).mu;
             if manualDetermined
                 manualMuValues(end+1)   = sortedData(j).muManual;
             end
+            
             fitTimes = [fitTimes; sortedData(j).fitTime];
-        end                
+                        
+        end 
+        ODPlateaus      = [sortedData(toPlot).ODPlateaus];
+        ODPlateaus_std  = [sortedData(toPlot).ODPlateaus_std];
         
         % create output var
         output(i).muValues = muValues;
         if manualDetermined
             output(i).manualMuValues = manualMuValues;            
         end
+        output(i).ODPlateaus        = ODPlateaus;
+        output(i).ODPlateaus_std    = ODPlateaus_std;
         
         % add summary vars
         output(i).muValuesMean = mean(muValues);
@@ -99,11 +111,7 @@ if isfield(USERSETTINGS, 'wellNamesToPlot')
         
         % also store fitTime
         output(i).fitTimes = fitTimes; 
-        
-        % also store plateau values
-        output(i).plateauValuesMean = myPlateauValues(plotGroupIdx);
-        output(i).plateauValuesStd  = myPlateauValues_std(plotGroupIdx);
-                
+                       
     end
 
 
@@ -160,7 +168,6 @@ end
 saveas(gcf,[myJustPlotDir 'groupedgrowthdistr' USERSETTINGS.wellNamesToPlot{1} 'etc.png'],'png')
 saveas(gcf,[myJustPlotDir 'groupedgrowthdistr' USERSETTINGS.wellNamesToPlot{1} 'etc.eps'],'epsc')
 
-
 end
 
 %% Now plot mean fluor values (and underlying data)
@@ -176,7 +183,6 @@ if ~exist ('RANGEFIELD','var'), RANGEFIELD = 'fitRangeFluor'; end
 
 if isfield(USERSETTINGS, 'wellNamesToPlot')
 
-    output = struct; 
     for i = 1:numel(USERSETTINGS.wellNamesToPlot)
 
         % current well to plot
@@ -290,46 +296,46 @@ sortedData.fluorNormalized = ...
 % - MYXMAX  X axis max of fluor PDF
 
 if isfield(USERSETTINGS, 'wellNamesToPlot')
-    
-figure, clf, hold on
-for i = 1:numel(USERSETTINGS.wellNamesToPlot) % loop over labels        
-       
-    plot( output(i).traceYmeans, ...
-          output(i).(muFieldNameToPlot), ...
-          'x','MarkerSize',15,'LineWidth',2,'Color','k')
-        
-end
 
-ylim([0, max([output.(muFieldNameToPlot)])*1.1]);
-%xlim([0,numel(USERSETTINGS.wellNamesToPlot)+1])
+    figure, clf, hold on
+    for i = 1:numel(USERSETTINGS.wellNamesToPlot) % loop over labels        
 
-set(findall(gcf,'type','text'),'FontSize',FONTSIZE,'fontWeight','normal');
-set(gca,'FontSize',FONTSIZE);
-title(['For ' USERSETTINGS.wellNamesToPlot{1} ' etc.']);
-xlabel('fluor intensity (a.u./OD)')
-ylabel('fitted growth rate (dbl/hr)')
-    
-saveas(gcf,[myJustPlotDir 'groupedscatter' USERSETTINGS.wellNamesToPlot{1} 'etc.png'],'png')
-saveas(gcf,[myJustPlotDir 'groupedscatter' USERSETTINGS.wellNamesToPlot{1} 'etc.eps'],'epsc')
+        plot( output(i).traceYmeans, ...
+              output(i).(muFieldNameToPlot), ...
+              'x','MarkerSize',15,'LineWidth',2,'Color','k')
 
-%set(gca, 'Xscale', 'log')
+    end
 
-% Plot of distribution of fluor values
-% ===
-figure, clf, hold on;
-[n,centers]=hist([output(:).traceYmeans]);
-l=bar(centers,n,'FaceColor',[.6 .6 .6],'LineWidth',1);
-%set(l,'FaceColor',[.6 .6 .6],'LineWidth',1);
-xlabel('Fluor signal (a.u.)'); ylabel('Count'); title(['For ' USERSETTINGS.wellNamesToPlot{1} ' etc.']); 
-set(findall(gcf,'type','text'),'FontSize',FONTSIZE,'fontWeight','normal')
-set(gca,'FontSize',FONTSIZE)
-if exist('MYXMAX','var')
-    xlim([0,MYXMAX]);
-else, xlim([0,300000]);
-end
+    ylim([0, max([output.(muFieldNameToPlot)])*1.1]);
+    %xlim([0,numel(USERSETTINGS.wellNamesToPlot)+1])
 
-saveas(gcf,[myJustPlotDir 'groupedfluordistr' USERSETTINGS.wellNamesToPlot{1} 'etc.png'],'png')
-saveas(gcf,[myJustPlotDir 'groupedfluordistr' USERSETTINGS.wellNamesToPlot{1} 'etc.eps'],'epsc')
+    set(findall(gcf,'type','text'),'FontSize',FONTSIZE,'fontWeight','normal');
+    set(gca,'FontSize',FONTSIZE);
+    title(['For ' USERSETTINGS.wellNamesToPlot{1} ' etc.']);
+    xlabel('fluor intensity (a.u./OD)')
+    ylabel('fitted growth rate (dbl/hr)')
+
+    saveas(gcf,[myJustPlotDir 'groupedscatter' USERSETTINGS.wellNamesToPlot{1} 'etc.png'],'png')
+    saveas(gcf,[myJustPlotDir 'groupedscatter' USERSETTINGS.wellNamesToPlot{1} 'etc.eps'],'epsc')
+
+    %set(gca, 'Xscale', 'log')
+
+    % Plot of distribution of fluor values
+    % ===
+    figure, clf, hold on;
+    [n,centers]=hist([output(:).traceYmeans]);
+    l=bar(centers,n,'FaceColor',[.6 .6 .6],'LineWidth',1);
+    %set(l,'FaceColor',[.6 .6 .6],'LineWidth',1);
+    xlabel('Fluor signal (a.u.)'); ylabel('Count'); title(['For ' USERSETTINGS.wellNamesToPlot{1} ' etc.']); 
+    set(findall(gcf,'type','text'),'FontSize',FONTSIZE,'fontWeight','normal')
+    set(gca,'FontSize',FONTSIZE)
+    if exist('MYXMAX','var')
+        xlim([0,MYXMAX]);
+    else, xlim([0,300000]);
+    end
+
+    saveas(gcf,[myJustPlotDir 'groupedfluordistr' USERSETTINGS.wellNamesToPlot{1} 'etc.png'],'png')
+    saveas(gcf,[myJustPlotDir 'groupedfluordistr' USERSETTINGS.wellNamesToPlot{1} 'etc.eps'],'epsc')
 
 end
 

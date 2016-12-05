@@ -127,6 +127,18 @@ if USERSETTINGS.fitManual
     mytime=[num2str(thetime(1)) '-' num2str(thetime(2)) '-' num2str(thetime(3)) '_' num2str(thetime(4)) '-' num2str(thetime(5))];
     save([myFullDir currentdate 'fitTimeManual_ranges' mytime '_' USERSETTINGS.customSuffix '.mat'],'myfitTimeManual','myfitRangeManual');
 
+    %{
+    %% To restore saved data use:
+    for i = 1:length(sortedData)
+              
+        if ~(myfitTimeManual(i,:)==[0,0])
+            sortedData(i).fitTimeManual  =myfitTimeManual(i,:);
+            sortedData(i).fitRangeManual =myfitRangeManual{i};
+        end
+        
+    end        
+    %}
+    
 end
 
 %% (6)

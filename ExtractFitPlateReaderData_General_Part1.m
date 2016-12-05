@@ -476,14 +476,14 @@ end
 % Plot all graphs grouped by category, without fitting
 % ************************************************
 
-% Output vars
-myPlateauValues     = [];
-myPlateauValues_std = [];
+currentPlateauFieldName = [yField 'Plateaus'];
+currentPlateauFieldName_std = [yField 'Plateaus_std'];
 
 % -----------------------------------------------
 %loop over different groups in well (wellNames)
 % -----------------------------------------------
-for nameidx=1:length(wellNames)    
+myPlateauValues = []; myPlateauValues_std = [];
+for nameidx=1:length(wellNames)
        
     name=char(wellNames(nameidx));
 
@@ -523,10 +523,13 @@ for nameidx=1:length(wellNames)
     % MW TODO: use membersOfGroup for this.
     % -----------------------------------------------
     myCurrentDataTime = []; myCurrentDataOD_substr = []; myCurrentColors = [];
+    groupIdxs=[];
     for i=1:length(sortedData) 
         
         % if name matches current group
         if strcmp(sortedData(i).DescriptionPos,name)==1
+            
+            groupIdxs=[groupIdxs i];
             
             colorcounter=colorcounter+1;           
             
@@ -556,6 +559,12 @@ for nameidx=1:length(wellNames)
             % plateau value later.
             myCurrentDataOD_substr_movavg = [myCurrentDataOD_substr sortedData(i).(yField_subtr)];
             
+            
+            % Determine plateau value for this well 
+            range = [ceil(size(sortedData(i).(yField_subtr),1)*PLATEAUSTART) size(sortedData(i).(yField_subtr),1)];
+            if range(1) == 0, range(1)=1; end % this might be done prettier.. MW TODO
+            sortedData(i).(currentPlateauFieldName)     = mean(sortedData(i).(yField_subtr)(range));
+            sortedData(i).(currentPlateauFieldName_std) = std(sortedData(i).(yField_subtr)(range));
         end
     end
     % end loop over all data and search for repetitions with same 'name'
@@ -575,35 +584,17 @@ for nameidx=1:length(wellNames)
     % close figures
     close(h); close(hlog);
     
-    % Determine plateau values for this group
-    % (determined here as average of last 
-    % [fraction PLATEAUSTART:totallength] values.)
-    
-    % First average different moving averages, if there are more lines
-    % available.
-    if size(myCurrentDataOD_substr_movavg,2) > 1
-        myMeanCurrentDataOD_substr_movavg = mean(myCurrentDataOD_substr_movavg);
-    else
-        % simply take the 1 line
-        myMeanCurrentDataOD_substr_movavg = myCurrentDataOD_substr_movavg;
-    end
-    
-    % Determine plateauvalue    
-    range = [ceil(size(myMeanCurrentDataOD_substr_movavg,1)*PLATEAUSTART) size(myMeanCurrentDataOD_substr_movavg,1)];
-    if range(1) == 0, range(1)=1; end % this might be done prettier.. MW TODO
-    currentPlateauValues     = mean(myMeanCurrentDataOD_substr_movavg(range));
-    currentPlateauValues_std = std(myMeanCurrentDataOD_substr_movavg(range));
-
-    myPlateauValues     = [myPlateauValues      currentPlateauValues];
-    myPlateauValues_std = [myPlateauValues_std  currentPlateauValues_std];
-      
+    % Now determine the averages per group of the plateau values    
+    myPlateauValues(nameidx) = mean([sortedData(groupIdxs).(currentPlateauFieldName)]);
+    myPlateauValues_std(nameidx) = std([sortedData(groupIdxs).(currentPlateauFieldName)]); % std over means!
+     
 end
 % and loop over all names (different exp's)
 % -----------------------------------------------
 
 % Save estimates of plateau values
 h = figure();
-%barh(myPlateauValues);
+%barh((currentPlateauFieldName));
 barwitherr(myPlateauValues_std,myPlateauValues,'FaceColor',[0.8,0.8,0.8]);
 xlabel('Strain/medium');
 ylabel([yField ' value']);
@@ -621,7 +612,7 @@ saveas(h,[figFullName '.png'], 'png');
 
 % Output plateau values to Excel file
 filename = [myFullDir currentdate 'plateauvalues.xlsx'];
-%myPlateauTable=table(wellNames,myPlateauValues'; 
+%myPlateauTable=table(wellNames,(currentPlateauFieldName)'; 
 myPlateauTable=cell([wellNames,num2cell(myPlateauValues'),num2cell(myPlateauValues_std')])
 xlswrite(filename,myPlateauTable,'Plateauvalues','B2');
 
@@ -633,8 +624,8 @@ clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODmi
 % Save estimates of plateau values
 h = figure();
 barh(myPlateauValues);
-xlabel('Strain/medium');
-ylabel([yField ' value']);
+ylabel('Strain/medium');
+xlabel([yField ' value']);
 title(['Plateau values determined from ' num2str(PLATEAUSTART) '-1.00 interval'])
 set(gca, 'YTick', [1:length(wellNames)]);
 set(gca, 'YTickLabel', wellNames);
@@ -781,6 +772,7 @@ clear dummy nameidx name muAccum muManualAccum
 clear xlimfit ylimfit colorcounter mylegendText g h fitTimeManualext ODcalcManual  ODcalc
 clear fitline figFullName ans currentColor fid i str SHOW_FIG_FIT ODmaxline ODminline
 %}
+
 
 %% Tell user what to do
 
