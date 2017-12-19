@@ -101,10 +101,11 @@ end
 %% Automatically call the plotting script
 % (This is also useful for backwards compatiblity);
 
+%{
 if ~exist('DONTPLOT','var')
     ExtractFitPlateReaderData_General_Part3_Plotting
 end
-
+%}
 
 
 

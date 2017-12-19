@@ -183,6 +183,7 @@ if ~exist ('RANGEFIELD','var'), RANGEFIELD = 'fitRangeFluor'; end
 
 if isfield(USERSETTINGS, 'wellNamesToPlot')
 
+    myHandles=[];
     for i = 1:numel(USERSETTINGS.wellNamesToPlot)
 
         % current well to plot
@@ -193,7 +194,7 @@ if isfield(USERSETTINGS, 'wellNamesToPlot')
         toPlot = cell2mat(membersOfGroup(plotGroupIdx));
 
         % Simply plot all separate datasets into one figure
-        figure(i), clf, hold on
+        myHandles(i) = figure;, clf, hold on
         for j = toPlot
             myTimes   = sortedData(j).(TIMEFIELD);
             myYvalues = sortedData(j).(YFIELD);
@@ -242,7 +243,7 @@ if isfield(USERSETTINGS, 'wellNamesToPlot')
     % Go back per figure and set y max
     for i = 1:numel(USERSETTINGS.wellNamesToPlot)
         if ~(max([output.meanFluor])*1.1<0)
-            figure(i), ylim([0, max([output.meanFluor])*1.1]);
+            figure(myHandles(i)), ylim([0, max([output.meanFluor])*1.1]);
         end
     end
     
